@@ -25,3 +25,7 @@ Het protocol maakt gebruik van MQTT voor de communicatie tussen de server en zij
 }
 ```
 
+```json
+
+```
+
