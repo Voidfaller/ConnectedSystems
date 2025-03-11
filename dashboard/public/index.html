@@ -1,43 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>Dashboard robots</title>
-        <style>
-            body {
-                background-color: #f0f0f0; /* Add a background color */
-            }
-            .grid button {
-                width: 100%; /* Make buttons fill the grid cell */
-                height: 30px; /* Adjust height to match the width */
-                padding: 0; /* Remove padding */
-                margin: 0; /* Remove margin */
-                box-sizing: border-box; /* Include border in the element's total width and height */
-            }
-            .grid{
-                display: inline-block;
-                outline: solid 1px red;
-                
-            }
-            .grid .row{
-                outline: solid 1px blue;
-                height: 50px;
-            }
-            .grid .col{
-                outline: solid 1px green;
-                height: 50px;
-                width: 50px;
-            }
 
-            .col.robot1{
-                background-color: red;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="app">
-            <div class="grid" id="button-grid">
-            </div>
+<head>
+    <title>Dashboard robots</title>
+    <style>
+        .background {
+            background-color: #f0f0f0;
+        }
+        .grid {
+            display: inline-block;
+            outline: solid 3px black;
+            color: white;
+        }
+
+        .grid .row {
+            outline: solid 1px lightslategray;
+            color: white;
+            height: 50px;
+
+        }
+
+        .grid .col {
+            outline: solid 1px lightslategray;
+            color: white;
+            height: 50px;
+            width: 50px;
+            padding: 0;
+            margin: 0;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="grid" id="button-grid">
         </div>
-        <script src="script.js"></script>
-    </body>
+    </div>
+    <script src="script1.js"></script>
+</body>
+
 </html>
