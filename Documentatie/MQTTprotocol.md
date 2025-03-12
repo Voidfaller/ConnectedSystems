@@ -24,8 +24,36 @@ Het protocol maakt gebruik van MQTT voor de communicatie tussen de server en zij
    }
 }
 ```
+### Velden:
+- **sender** : (String) De naam of ID van de afzender.
+- **type** : (String) Het type bericht, bijvoorbeeld:
+  - **position_update** : De robot stuurt zijn huidige positie.
+  - **obstacle_detected** : Een obstakel is gedetecteerd. 
+  - **acknowledgment** : Een bevestiging dat een bericht is ontvangen
+- **Timestamp** : (Integer) Unix-timestamp van het moment van verzending.
+- **Data** : (Object) Bevat specifieke informatie afhankelijk van het berichttype.
 
+
+### Berichttypen
+Hieronder volgt een overzicht van de gedefineerde  berichttypen
+## 1. Positie-update (position_update)
+   **Verstuurd door:** Robots
+   **Doel:** De robot deelt zijn huidige positie en richting met de server en andere robots.
+   **Voorbeeld:** 
 ```json
-
+{
+   "sender": "robot_1",
+   "type" : "position_update",
+   "timestamp" : 1707052810,
+   "data" : {
+      "x": 6,
+      "y" : -2,
+      "direction" : "south"
+   }
+}
 ```
+
+## 2. Obstakel gedetecteerd (obstacle_detected)
+**Verstuurd door:** Robots
+**Doel:**
 
