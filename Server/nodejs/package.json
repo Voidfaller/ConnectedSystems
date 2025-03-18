@@ -1,0 +1,13 @@
+{
+    "name": "mqtt-backend",
+    "version": "1.0.0",
+    "description": "Node.js server for MQTT communication",
+    "main": "server.js",
+    "dependencies": {
+      "mqtt": "^4.3.7"
+    },
+    "scripts": {
+      "start": "node server.js"
+    }
+  }
+  
