@@ -71,7 +71,7 @@ Elk bericht bevat de volgende velden:
    "type": "registration_response",
    "timestamp": 1707053105,
    "data": {
-      "assigned_robot_id": "robot_12",
+      "assigned_robot_id": "robot_12"
    }
 }
 ```
