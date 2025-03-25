@@ -1,5 +1,8 @@
+let client;
+let brokerIp = "192.168.1.105"; // Replace with broker IP adres
 document.addEventListener('DOMContentLoaded', () => {
-    
+
+    connectMQTT();
     function generateButtons() {
         for (let i = 0; i < 10; i++) {
             const row = document.createElement('div');
@@ -30,11 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
             button.style.backgroundColor = colorMapping[object];
         }
     }
-    function start(){
+    function start() {
 
     }
-    function stop(){
-        
+    function stop() {
+
     }
 
     generateButtons();
@@ -46,3 +49,25 @@ document.addEventListener('DOMContentLoaded', () => {
     placeObject('box', 5, 5);
 
 });
+
+// topics to subscribe to
+const topics = [
+"robots/world/obstacles"];
+
+function connectMQTT() {
+    const brokerUrl = `ws://${brokerIp}:9001`;
+    client = mqtt.connect(brokerUrl);
+    client.on("connect", () => {
+        console.log("Connected to MQTT broker");
+        topics.forEach((topic) => {
+            client.subscribe(topic, (err) => {
+                if (err) {
+                    console.error(`Failed to subscribe to topic ${topic}:`, err);
+                } else {
+                    console.log(`Subscribed to topic ${topic}`);
+                }
+            });
+        });
+    });
+}
+

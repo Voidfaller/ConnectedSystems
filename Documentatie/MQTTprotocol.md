@@ -1,6 +1,6 @@
 # Protocol Connected Systems eindopdracht | TI  
-## Versie 1.2  
-**Datum:** 04/03/25  
+## Versie 1.3  
+**Datum:** 25/03/25  
 **Auteur(s):** Gabriela Arvelo, Mees Bogaards, Marit Snijder, Giovanni de Groot  
 
 ---
@@ -12,33 +12,17 @@ Dit document beschrijft de communicatie tussen de centrale server en alle client
 Het protocol maakt gebruik van **MQTT** voor de communicatie tussen de server en de robots. Alle berichten worden verzonden in **JSON-formaat** voor leesbaarheid en overzichtelijkheid.  
 
 ## 3. Berichtenstructuur  
-Elk bericht bevat de volgende velden:  
+Elk bericht wordt verzonden in een json
 
 ```json
 {
-   "sender": "robot_1",
-   "type": "position_update",
-   "timestamp": 219719381,
-   "data": {
       "x": 4,
       "y": 1,
       "direction": "north"
-   }
 }
 ```
 
-### **Velden:**  
-- **sender** (String): De naam of ID van de afzender.  
-- **type** (String): Het type bericht, bijvoorbeeld:  
-  - `registration_request`: Robot vraagt om een ID.  
-  - `position_update`: Robot stuurt zijn huidige positie.  
-  - `obstacle_detected`: Robot detecteert een obstakel.  
-  - `task_assignment`: Server wijst een taak toe aan een robot.  
-  - `status_update`: Robot stuurt zijn huidige status.  
-  - `acknowledgment`: Bevestiging van ontvangst.  
-  - `error`: Foutmelding bij verwerking.  
-- **timestamp** (Integer): Unix-timestamp van het moment van verzending.  
-- **data** (Object): Bevat specifieke informatie afhankelijk van het berichttype.  
+
 
 ---
 
@@ -46,35 +30,19 @@ Elk bericht bevat de volgende velden:
 
 ### **4.1 Aanmelding (registration)**  
 **Verstuurd door:** Robots  
-**Doel:** Een robot meldt zich aan bij de server en ontvangt een uniek ID.  
+**Doel:** Een robot meldt zich aan bij de server 
 
-#### **1. Robot vraagt om registratie** 
-**Topic:** `robots/registration/request`  
+#### **1. Robot vraagt om aanmelding** 
+**Topic:** `robots/registration` 
 **Payload:**  
 ```json
-{
-   "sender": "unknown",
-   "type": "registration_request",
-   "timestamp": 1707053100,
-   "data": {
-      "response_topic": "robots/response/robot_temp_1234"
-   }
-}
+  {
+   "robot_id" : "robotID"
+  }
+
 ```
 
-#### **2. Server kent een ID toe**  
-**Topic:** `robots/response/robot_temp_1234`
-**Payload:**
-```json
-{
-   "sender": "server",
-   "type": "registration_response",
-   "timestamp": 1707053105,
-   "data": {
-      "assigned_robot_id": "robot_12"
-   }
-}
-```
+
 
 ---
 
@@ -82,19 +50,15 @@ Elk bericht bevat de volgende velden:
 **Verstuurd door:** Robots  
 **Doel:** De robot deelt zijn huidige positie en richting met de server.  
 
-**Topic:** `robots/updates/position`  
+**Topic:** `robots/position/<robotID>`  
 **Payload:**  
 ```json
-{
-   "sender": "robot_1",
-   "type": "position_update",
-   "timestamp": 1707052810,
-   "data": {
+   {
       "x": 6,
       "y": -2,
       "direction": "south"
    }
-}
+
 ```
 
 ---
@@ -104,56 +68,26 @@ Elk bericht bevat de volgende velden:
 **Doel:** De robot meldt een gevonden obstakel aan de server.  
 
 #### 1. Robot meldt een gevonden obstakel aan de server
-**Topic:** `robots/updates/obstacles`  
+**Topic:** `robots/obstacle/<robotID>`
 **Payload:**  
 ```json
 {
-   "sender": "robot_1",
-   "type": "obstacle_detected",
-   "timestamp": 1707052814,
-   "data": {
       "x": 6,
       "y": -2,
       "obstacle_type": "wall"
-   }
 }
 ```
-
-#### 2. De server deelt de gevonden obstakel aan alle robots
-**Topic:** `robots/world/obstacles`
-**Payload:**
-```json
-{
-   "sender": "server",
-   "type": "obstacle_update",
-   "timestamp": 1707052820,
-   "data": {
-      "x": 6,
-      "y": -2,
-      "obstacle_type": "wall",
-      "reported_by": "robot_1"
-   }
-}
-```
-
 ---
 
 ### **4.4 Taaktoewijzing (task_assignment)**  
 **Verstuurd door:** Server  
-**Doel:** De server wijst een taak toe aan een specifieke robot.  
+**Doel:** De server geeft een command aan de robot.  
 
-**Topic:** `robots/commands/robot_12`  
+**Topic:** `robots/robotID/task`  
 **Payload:**  
 ```json
 {
-   "sender": "server",
-   "type": "task_assignment",
-   "timestamp": 1707055100,
-   "data": {
-      "task_id": "task_45",
       "action": "move",
-      "target": {"x": 10, "y": 5}
-   }
 }
 ```
 
@@ -167,13 +101,7 @@ Elk bericht bevat de volgende velden:
 **Payload:**  
 ```json
 {
-   "sender": "robot_12",
-   "type": "status_update",
-   "timestamp": 1707055000,
-   "data": {
-      "battery": 85,
       "task": "idle"
-   }
 }
 ```
 
@@ -232,7 +160,20 @@ Elk bericht bevat de volgende velden:
 
 ---
 
-### **4.8 Foutafhandeling (error)**  
+### **4.8 start en stop**  
+**Verstuurd door:** Dashboard / Fysieke unit  
+**Doel:** Hiermee wordt het systeem gestart en gestopt
+
+**Topic:** `system/powerControl`
+**Payload:**
+```json
+{
+   "state": 0
+}
+```
+---
+
+### **4.9 Foutafhandeling (error)**  
 **Verstuurd door:** Robots / Server  
 **Doel:** Een bericht is niet correct verwerkt of begrepen.  
 
@@ -249,6 +190,7 @@ Elk bericht bevat de volgende velden:
    }
 }
 ```
+
 -----
 ## 5 Mogelijke foutcodes
 | Error Code | Betekenis                                               |

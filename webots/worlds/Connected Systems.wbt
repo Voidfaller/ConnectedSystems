@@ -1,0 +1,40 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/RectangleArena.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation -0.18416541320090105 0.23715935285787795 0.9538545706409199 1.6995136874763113
+  position 0.5542417638651275 -1.97298988949696 1.2045614889556275
+}
+Robot {
+  translation 3.601240019485839e-10 -1.1859425195854272e-06 0.049606516798925714
+  rotation -0.028325723033401935 0.21995850179098847 0.9750978981130554 2.2635746461484345e-08
+  children [
+    Shape {
+      appearance PBRAppearance {
+      }
+      geometry Box {
+        size 0.1 0.1 0.1
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.1 0.1 0.1
+  }
+  physics Physics {
+  }
+  controller "MQTT_CLIENT"
+  supervisor TRUE
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  translation 0.45 -0.45 0
+  floorTileSize 0.2 0.2
+}
