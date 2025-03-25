@@ -5,13 +5,14 @@ import json
 # Set the MQTT broker IP here
 MQTT_BROKER_IP = "192.168.1.105"  # Change this as needed
 MQTT_PORT = 1883  # Default MQTT port
+ROBOT_ID = "robot_1"
 
 class MQTTSupervisor(Supervisor):
     def __init__(self):
         super().__init__()
 
         # MQTT Setup with latest callback API (without specifying protocol)
-        self.client = mqtt.Client(client_id="webots_supervisor")  # Remove protocol=mqtt.MQTTv5
+        self.client = mqtt.Client(client_id=ROBOT_ID)  
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_log = self.on_log  # Enable MQTT logging
@@ -27,8 +28,9 @@ class MQTTSupervisor(Supervisor):
             self.connected = True  # Set connected flag to True
             print(f"Connected to MQTT broker at {MQTT_BROKER_IP}:{MQTT_PORT} with result code {rc}")
             # Subscribe to topic once connected
-            client.subscribe("robots/world/obstacles")
-            print("Subscribed to topic: robots/world/obstacles")
+            payload =json.dumps({"robot_id": ROBOT_ID})  # JSON payload
+            client.publish("robots/registration", payload)
+            
 
     def on_message(self, client, userdata, msg):
         """Handle incoming messages."""
@@ -58,6 +60,16 @@ class MQTTSupervisor(Supervisor):
         """Main loop to keep Webots and MQTT in sync."""
         timestep = int(self.getBasicTimeStep())
         while self.step(timestep) != -1:
+            pos = self.getSelf().getPosition()
+            posX = round(pos[0] * 10)
+            posY = abs(round(pos[1] * 10))
+            direction = self.getSelf().getOrientation()
+            payload = json.dumps({
+                    "x": posX,
+                    "y": posY,
+                    "direction": "north"
+            })
+            self.client.publish(f"robots/position/{ROBOT_ID}", payload)
             self.client.loop()  # Keep MQTT active inside loop
 
     def on_exit(self):
