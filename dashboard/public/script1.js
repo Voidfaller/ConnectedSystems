@@ -30,6 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
             button.style.backgroundColor = colorMapping[object];
         }
     }
+    function start(){
+
+    }
+    function stop(){
+        
+    }
 
     generateButtons();
 
