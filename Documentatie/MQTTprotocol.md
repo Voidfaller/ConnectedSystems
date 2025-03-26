@@ -37,7 +37,8 @@ Elk bericht wordt verzonden in een json
 **Payload:**  
 ```json
   {
-   "robot_id" : "robotID"
+   "robot_id" : "robotID",
+   "robot_taskload": ["taskload"]
   }
 
 ```
@@ -87,21 +88,25 @@ Elk bericht wordt verzonden in een json
 **Payload:**  
 ```json
 {
-      "action": "move",
+      "action": "pickup",
 }
 ```
-
 ---
 
-### **4.5 Statusupdate (status_update)**  
-**Verstuurd door:** Robots  
+### ** 
+### **4.5 Path Update**  
+**Verstuurd door:** Server  
 **Doel:** De robot stuurt zijn huidige status naar de server.  
 
-**Topic:** `robots/status/robot_12`  
+**Topic:** `robots/pathUpdate/<robotID>`  
 **Payload:**  
 ```json
 {
-      "task": "idle"
+      "path": [
+         {"x": 1, "y":2,
+          "x": 5, "y":1,
+          "x":1, "y":4}
+      ]
 }
 ```
 

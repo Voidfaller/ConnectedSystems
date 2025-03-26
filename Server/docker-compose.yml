@@ -14,7 +14,6 @@ services:
     build: ./nodejs
     container_name: backend_server
     working_dir: /app
-    command: "node server.js"
     depends_on:
       - mqtt-broker
     restart: always
@@ -22,7 +21,7 @@ services:
       - ./nodejs:/app
     networks:
       - mqtt_network
-
+    command: sh -c "npm install && npm run start"
 networks:
   mqtt_network:
     driver: bridge
