@@ -1,12 +1,21 @@
 let client;
-let brokerIp = "192.168.1.105"; // Replace with broker IP adres
+let brokerIp = "192.168.178.80"; // Replace with broker IP adres
+
+// Move lastPlace outside of placeObject to retain its state
+const lastPlace = {
+    robot1: { x: 0, y: 0 },
+    robot2: { x: 0, y: 0 },
+    robot3: { x: 0, y: 0 },
+    robot4: { x: 0, y: 0 }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const startButtton = document.getElementById("buttonStart");
     const stopButton = document.getElementById("buttonStop");
-    startButtton.addEventListener("click", function(){
+    startButtton.addEventListener("click", function () {
         start();
     });
-    stopButton.addEventListener("click", function(){
+    stopButton.addEventListener("click", function () {
         stop();
     });
 
@@ -37,15 +46,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const button = document.querySelector(`button[data-position='${x},${y}']`);
-        if (button) {
+        if(object === 'box'){
             button.style.backgroundColor = colorMapping[object];
+            return;
         }
+        console.log("new place of object : " + object, x, y);
+        console.log("old place: of object : " + lastPlace[object],lastPlace[object].x, lastPlace[object].y);
+        const buttonPrev = document.querySelector(`button[data-position='${lastPlace[object].x},${lastPlace[object].y}']`);
+        if (lastPlace[object].x != x || lastPlace[object].y != y) { 
+            buttonPrev.style.backgroundColor = '#FFFFFF';
+            lastPlace[object].x = x;
+            lastPlace[object].y = y;
+        }
+
+        button.style.backgroundColor = colorMapping[object];
     }
     function start() {
         const payload = {
             state: 1
         };
-        client.publish("system/powerControl",JSON.stringify(payload));
+        client.publish("system/powerControl", JSON.stringify(payload));
         console.log("start");
 
     }
@@ -53,23 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             state: 0
         };
-        client.publish("system/powerControl",JSON.stringify(payload));
+        client.publish("system/powerControl", JSON.stringify(payload));
         console.log("stop");
     }
 
     generateButtons();
 
-    placeObject('robot1', 0, 0);
+    
     placeObject('robot2', 9, 0);
     placeObject('robot3', 0, 9);
     placeObject('robot4', 9, 9);
+    placeObject('robot1', 0, 0);
+
     placeObject('box', 5, 5);
+    
 
 });
 
 // topics to subscribe to
 const topics = [
-"robots/world/obstacles"];
+    "robots/world/obstacles", "robots/position/#", "robots/obstacle/#"];
 
 function connectMQTT() {
     const brokerUrl = `ws://${brokerIp}:9001`;
@@ -87,4 +110,3 @@ function connectMQTT() {
         });
     });
 }
-
