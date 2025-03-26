@@ -1,6 +1,14 @@
 let client;
 let brokerIp = "192.168.1.105"; // Replace with broker IP adres
 document.addEventListener('DOMContentLoaded', () => {
+    const startButtton = document.getElementById("buttonStart");
+    const stopButton = document.getElementById("buttonStop");
+    startButtton.addEventListener("click", function(){
+        start();
+    });
+    stopButton.addEventListener("click", function(){
+        stop();
+    });
 
     connectMQTT();
     function generateButtons() {
@@ -34,10 +42,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function start() {
+        const payload = {
+            state: 1
+        };
+        client.publish("system/powerControl",JSON.stringify(payload));
+        console.log("start");
 
     }
     function stop() {
-
+        const payload = {
+            state: 0
+        };
+        client.publish("system/powerControl",JSON.stringify(payload));
+        console.log("stop");
     }
 
     generateButtons();
