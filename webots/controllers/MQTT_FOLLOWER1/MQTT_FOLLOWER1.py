@@ -7,19 +7,18 @@ from controller import Supervisor
 # Set the MQTT broker IP here
 MQTT_BROKER_IP = "192.168.1.105"
 MQTT_PORT = 1883
-
+ROBOT_ID = "robot_2"
 TASKLOAD = ["Extra Heavy", "Heavy", "Medium", "Light", "Extra Light"]
 
 class MQTTSupervisor(Supervisor):
     def __init__(self):
         super().__init__()
-        self.ROBOT_ID = self.getSelf().getField("name").getSFString()  # Get the robot ID from the field name
         self.step_size = 0.001  # Small step size for smooth movement
+        self.current_pos = [0, 0]  # Starting position of the robot
         self.trans = self.getSelf().getField("translation")  # Access translation field
         self.threshold = 0.01  # Threshold distance to snap to the target
         self.moving = False  # Flag to keep track of movement status
-        self.startPos = self.trans.getSFVec3f()
-        self.current_pos = self.startPos  # Starting position of the robot
+        self.startPos = [0, 0]
         # MQTT setup
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
@@ -41,11 +40,7 @@ class MQTTSupervisor(Supervisor):
         """Called when the client connects to the broker."""
         if rc == 0:
             print("Connected to MQTT broker successfully!")
-            # Publish a message once connected
-            payload = {"robot_id": self.ROBOT_ID, "start_pos":{"x": self.startPos[0], "y": self.startPos[1], "direction":"north"}, "taskLoad": TASKLOAD}
-            client.subscribe(f"robots/pathUpdate/{self.ROBOT_ID}")  # Subscribe to the path update topic
-            #client.publish(f"robots/pathUpdate/{ROBOT_ID}", json.dumps({"robot_id": ROBOT_ID, "taskLoad": TASKLOAD}))  # Publish to the path update topic
-            client.publish("robots/registration", json.dumps(payload))  # Publish to the robot status topic
+            client.subscribe(f"robots/pathUpdate/{ROBOT_ID}")  # Subscribe to the path update topic
         else:
             print(f"Failed to connect, return code {rc}")
 
@@ -56,7 +51,7 @@ class MQTTSupervisor(Supervisor):
             message = json.loads(msg.payload.decode('utf-8'))
             print(f"Received JSON message: {message} on topic {msg.topic}")
             
-            if msg.topic == f"robots/pathUpdate/{self.ROBOT_ID}":
+            if msg.topic == f"robots/pathUpdate/{ROBOT_ID}":
                 print("Path update received!")
                 path = message.get("path", [])
 
@@ -69,7 +64,7 @@ class MQTTSupervisor(Supervisor):
                 x, y = map(int, target_str.split(","))  # Convert "1,0" → [1, 0]
 
                 # Convert to Webots coordinate system
-                target_pos = [x / 10, y / 10]  # Scaling applied
+                target_pos = [x / 10, -y / 10]  # Scaling applied
 
                 print(f"Moving to {target_pos}...")
 
@@ -78,18 +73,6 @@ class MQTTSupervisor(Supervisor):
 
         except Exception as e:
             print(f"Error processing message: {e}")
-
-
-
-    def update_position(self):
-        """Update the robot's position based on MQTT messages."""
-        # Update the current position with the new position from the message
-        newPos = self.trans.getSFVec3f()
-        self.current_pos[0] = newPos[0]
-        self.current_pos[1] = newPos[1]
-        payLoad = {"x": self.current_pos[0] * 10, "y": self.current_pos[1] * 10, "direction":"north"}
-        self.client.publish("robots/position/" + self.ROBOT_ID, json.dumps(payLoad))
-        
         
     async def move_robot(self, target):
         """Move the robot from point A to point B smoothly, snap when really close."""

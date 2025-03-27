@@ -1,17 +1,19 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "192.168.10.137";
+const brokerIP = "192.168.1.105";
+
 let robots = [];
 let obstacles = [];
-
+let idleRobots = [];
 let taskQueue = [];
+let graph = new Map();
 // Connect to the MQTT broker inside Docker
 const client = mqtt.connect(`mqtt://${brokerIP}:1883`, { clientId: 'nodejs-server' });
 
 // MQTT Connect Event
 client.on('connect', () => {
     console.log('✅ Connected to MQTT Broker');
-    generateGraph(10);
+    generateGraph(11);
 
     // Subscribe to topics
     const topics = [
@@ -37,12 +39,10 @@ client.on('message', (topic, message) => {
         const positionRegex = /^robots\/position\/(.+)$/;
 
         if (topic === 'robots/registration') {
-            // Handle registration requests
             registerRobot(payload);
         } else if (positionRegex.test(topic)) {
             const match = positionRegex.exec(topic);
-            const robotId = match[1];  // Extract the robot ID from the topic
-            console.log(`Robot ID extracted from topic: ${robotId}`);
+            const robotId = match[1];
             updateRobotPosition(payload, robotId);
         } else {
             console.log(`Unhandled topic: ${topic}`);
@@ -55,16 +55,25 @@ client.on('message', (topic, message) => {
 // Register a new robot
 function registerRobot(payload) {
     const assignedId = payload.robot_id;
-    const taskload = payload.taskLoad || [];
-    robots[assignedId] = { id: assignedId, position: { x: null, y: null, direction: null }, taskLoad: taskload, tasks: [] };
+    robots[assignedId] = {
+        id: assignedId,
+        position: { x: payload.start_pos.x * 10, y: payload.start_pos.y * 10, direction: payload.start_pos.direction },
+        taskLoad: payload.taskLoad || [],
+        tasks: []
+    };
     console.log(`Registered new robot: ${assignedId}`);
-    console.log(`Current robots:`, robots);
+    console.log(`Robot ${assignedId} position:`, robots[assignedId].position);
+    //push robot to idle robots array
+    if (!idleRobots.includes(assignedId)) {
+        idleRobots.push(assignedId);
+    }
+    console.log(`Robot ${assignedId} is idle`);
 }
 
-// Update the robot's position
+// Update robot position & recalculate path
 function updateRobotPosition(payload, robotId) {
     if (!robots[robotId]) {
-        console.error(`Robot ${robotId} is not registered yet.`);
+        console.error(`Robot ${robotId} is not registered.`);
         return;
     }
 
@@ -75,93 +84,33 @@ function updateRobotPosition(payload, robotId) {
 
     const previousPosition = robots[robotId].position;
 
-    // Add the previous position back to the graph
-    if (previousPosition && previousPosition.x !== null && previousPosition.y !== null) {
-        addNodeToGraph(previousPosition.x, previousPosition.y);
-    }
 
-    // Update the robot's current position
+    // Update the robot's position
     robots[robotId].position = {
         x: payload.x,
         y: payload.y,
         direction: payload.direction
     };
 
-
-    // Remove the current position node from the graph
-    removeNodeFromGraph(payload.x, payload.y);
-
-
-
-    // Update the graph with the new position
-    console.log(graph);
     console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
-    //calculate new optimal path
-    let path = dijkstra(payload.x, payload.y);
-    client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
-}
-
-// Remove a node from the graph and its edges
-function removeNodeFromGraph(x, y) {
-    const node = `${x},${y}`;
-    if (graph.has(node)) {
-        // Remove edges connected to this node
-        graph.forEach((edges, key) => {
-            if (edges.has(node)) {
-                edges.delete(node);
-                console.log(`Removed edge between ${key} and ${node}`);
-            }
-        });
-
-        // Remove the node itself
-        graph.delete(node);
-        console.log(`Removed node ${node} from graph`);
+    if (robots[robotId].tasks.length > 0) {
+        let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0]);
+        console.log(`Calculated path for robot ${robotId}:`, path);
+        client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
     } else {
-        console.log(`Node ${node} not found in graph`);
+        if (!idleRobots.includes(robotId)) {
+            idleRobots.push(robotId);
+            console.log(`Robot ${robotId} is now idle.`);
+        }
     }
+    checkTasks();
 }
 
 
-
-
-
-// Add a node to the graph (if it doesn't already exist)
-// Add a node to the graph (if it doesn't already exist)
-function addNodeToGraph(x, y) {
-    const node = `${x},${y}`;
-    if (!graph.has(node)) {
-        graph.set(node, new Map());
-
-        // Add edges to adjacent nodes
-        const size = 10; // Assuming the grid is of size 10 (can be dynamic)
-        const neighbors = [
-            `${x - 1},${y}`, // Left
-            `${x + 1},${y}`, // Right
-            `${x},${y - 1}`, // Up
-            `${x},${y + 1}`, // Down
-        ];
-
-        neighbors.forEach((neighbor) => {
-            if (isValidNode(neighbor, size)) {
-                graph.get(node).set(neighbor, 1); // Add edge to the neighbor
-                graph.get(neighbor).set(node, 1); // Add edge back to the node
-            }
-        });
-
-        console.log(`Added node ${node} to graph`);
-    } else {
-        console.log(`Node ${node} already exists in graph`);
-    }
-}
-// Check if a node is within the valid grid bounds
-function isValidNode(node, size) {
-    const [x, y] = node.split(',').map(Number);
-    return x >= 0 && x < size && y >= 0 && y < size;
-}
 
 // Pathfinding logic - generate a grid graph
-let graph = new Map();
+
 
 function generateGraph(size) {
     for (let y = 0; y < size; y++) {
@@ -178,67 +127,75 @@ function generateGraph(size) {
 }
 
 
-// Dijkstra's algorithm for finding the shortest path
 function dijkstra(start, end) {
-    const distances = {};  // Stores the shortest distance from start to each node
-    const previous = {};   // Stores the previous node in the shortest path
-    const unvisited = new Set();  // Set of all unvisited nodes
-
-    // Initialize distances and unvisited nodes
-    for (let node of graph.keys()) {
-        distances[node] = Infinity;
-        unvisited.add(node);
+    if (!start || !end) {
+        console.error("Invalid start or end point for pathfinding.");
+        return [];
     }
-    distances[`${start.x},${start.y}`] = 0;  // Start node's distance is 0
 
-    while (unvisited.size > 0) {
-        // Get the node with the smallest distance
-        let currentNode = null;
-        let currentDistance = Infinity;
-        for (let node of unvisited) {
-            if (distances[node] < currentDistance) {
-                currentDistance = distances[node];
-                currentNode = node;
+    const startNode = `${start.x},${start.y}`;
+    const endNode = `${end.x},${end.y}`;
+
+    if (!graph.has(startNode) || !graph.has(endNode)) {
+        console.error(`Start or end node not found in graph.`);
+        return [];
+    }
+
+    let distances = new Map();
+    let previous = new Map();
+    let priorityQueue = new Map();
+
+    // Initialize distances
+    graph.forEach((_, node) => {
+        distances.set(node, Infinity);
+        priorityQueue.set(node, Infinity);
+    });
+
+    distances.set(startNode, 0);
+    priorityQueue.set(startNode, 0);
+
+    while (priorityQueue.size > 0) {
+        let currentNode = getMinNode(priorityQueue);
+
+        if (currentNode === endNode) break;
+
+        let currentDistance = distances.get(currentNode);
+        let neighbors = graph.get(currentNode);
+
+        neighbors.forEach((cost, neighbor) => {
+            let newDist = currentDistance + cost;
+            if (newDist < distances.get(neighbor)) {
+                distances.set(neighbor, newDist);
+                previous.set(neighbor, currentNode);
+                priorityQueue.set(neighbor, newDist);
             }
-        }
+        });
 
-        // If the current node is the destination, we're done
-        if (currentNode === `${end.x},${end.y}`) {
-            break;
-        }
-
-        unvisited.delete(currentNode);
-
-        // Ensure neighbors is an iterable object (a Map)
-        const neighbors = graph.get(currentNode);
-        if (!neighbors || !(neighbors instanceof Map)) {
-            console.error(`Invalid neighbors for node ${currentNode}:`, neighbors);
-            continue;  // Skip invalid nodes
-        }
-
-        // Update the distances to the neighbors
-        for (let [neighbor, weight] of neighbors) {
-            if (unvisited.has(neighbor)) {
-                const newDist = distances[currentNode] + weight;
-                if (newDist < distances[neighbor]) {
-                    distances[neighbor] = newDist;
-                    previous[neighbor] = currentNode;
-                }
-            }
-        }
+        priorityQueue.delete(currentNode);
     }
 
-    // Reconstruct the path
-    const path = [];
-    let node = `${end.x},${end.y}`;
-    while (previous[node]) {
-        path.unshift(node);
-        node = previous[node];
+    // Reconstruct the shortest path
+    let path = [];
+    let step = endNode;
+    while (step) {
+        path.unshift(step);
+        step = previous.get(step);
     }
 
-    path.unshift(`${start.x},${start.y}`);
-    return path;  // Returns the shortest path
+    if (path[0] !== startNode) {
+        console.error("No path found!");
+        return [];
+    }
+
+    console.log(`Shortest path from ${startNode} to ${endNode}:`, path);
+    return path;
 }
+
+// Helper function to get the node with the smallest distance
+function getMinNode(queue) {
+    return [...queue.entries()].reduce((min, entry) => (entry[1] < min[1] ? entry : min))[0];
+}
+
 
 
 
@@ -261,36 +218,42 @@ function generateTask() {
 
 
 function hungarianAlgorithm(robots, tasks) {
-    const validAssignments = [];
+    if (robots.length === 0 || tasks.length === 0) {
+        console.log("No robots or tasks available for assignment.");
+        return [];
+    }
 
-    // Create a cost matrix where only valid robot-task pairs are assigned costs
     let costMatrix = [];
+
     for (let i = 0; i < robots.length; i++) {
         costMatrix[i] = [];
         for (let j = 0; j < tasks.length; j++) {
-            if (robots[i].taskLoad.includes(tasks[j].taskType)) {
-                // Use Manhattan Distance as a cost metric (shorter is better)
-                let cost = Math.abs(robots[i].position.x - tasks[j].x) + Math.abs(robots[i].position.y - tasks[j].y);
-                costMatrix[i][j] = cost;
+            if (!robots[i].taskLoad.includes(tasks[j].taskType)) {
+                costMatrix[i][j] = Infinity;
             } else {
-                costMatrix[i][j] = Infinity; // Invalid assignment
+                let cost = Math.abs(robots[i].position.x - tasks[j].x) +
+                    Math.abs(robots[i].position.y - tasks[j].y);
+                costMatrix[i][j] = cost;
             }
         }
     }
 
-    // Apply the Hungarian Algorithm (external library like 'munkres-js' is recommended)
+    console.log("Generated Cost Matrix:", costMatrix);
 
-    const assignments = munkres(costMatrix);
+    try {
+        const assignments = munkres(costMatrix);
 
-    // Map the assignments back to robots and tasks
-    assignments.forEach(([robotIdx, taskIdx]) => {
-        if (costMatrix[robotIdx][taskIdx] !== Infinity) {
-            validAssignments.push({ robot: robots[robotIdx], task: tasks[taskIdx] });
-        }
-    });
-
-    return validAssignments;
+        return assignments.map(([robotIdx, taskIdx]) => {
+            if (costMatrix[robotIdx][taskIdx] !== Infinity) {
+                return { robot: robots[robotIdx], task: tasks[taskIdx] };
+            }
+        }).filter(Boolean);
+    } catch (error) {
+        console.error("Hungarian Algorithm Error:", error);
+        return [];
+    }
 }
+
 
 
 
@@ -299,40 +262,89 @@ function getAvailableRobots() {
     return Object.values(robots).filter(robot => robot.tasks.length === 0);
 }
 
-function planTasks(){
-     // Get a list of available robots
-     const availableRobots = getAvailableRobots();
+function planTasks() {
+    // Get a list of available robots
+    const availableRobots = getAvailableRobots();
 
-     if (taskQueue.length > 0 && availableRobots.length > 0) {
-         console.log("Assigning tasks to robots...");
- 
-         // Proceed with Hungarian algorithm only if there are available robots
-         const assignments = hungarianAlgorithm(availableRobots, taskQueue);
-         assignments.forEach(({ robot, task }) => {
-             robot.tasks.push(task); // Assign the task to the robot
- 
-             // Remove the assigned task from the queue
-             const taskIndex = taskQueue.findIndex(t => t.x === task.x && t.y === task.y);
-             if (taskIndex !== -1) {
-                 taskQueue.splice(taskIndex, 1);
-             }
-             console.log(`Assigned task ${task.taskType} to robot ${robot.id}`);
-         });
- 
-     } 
+    if (taskQueue.length > 0 && availableRobots.length > 0) {
+        console.log("Assigning tasks to robots...");
+
+        // Proceed with Hungarian algorithm only if there are available robots
+        const assignments = hungarianAlgorithm(availableRobots, taskQueue);
+        console.log("Assignments:", assignments);
+        assignments.forEach(({ robot, task }) => {
+            // Ensure tasks array exists
+            if (!robot.tasks) {
+                robot.tasks = [];
+            }
+
+            // Push the task into the robot's task list
+            robot.tasks.push({ ...task }); // Spread to ensure we don’t push object references
+
+            // Ensure the robot object in `robots` array/map is updated
+            if (robots[robot.id]) {
+                robots[robot.id].tasks = robot.tasks;
+            }
+
+            console.log("After assigning task, robot: " + JSON.stringify(robots[robot.id], null, 2));
+
+            // Remove the assigned task from the queue
+            const taskIndex = taskQueue.findIndex(t => t.x === task.x && t.y === task.y);
+            console.log(`Task index: ${taskIndex}`);
+            if (taskIndex !== -1) {
+                taskQueue.splice(taskIndex, 1);
+            }
+
+            console.log(`Assigned task ${task.taskType} to robot ${robot.id}`);
+        });
+
+
+    }
 }
 
+function checkIdleRobots() {
+    Object.values(robots).forEach(robot => {
+        if (robot.tasks.length === 0 && !idleRobots.includes(robot.id)) {
+            console.log(`Robot ${robot.id} is idle`);
+            idleRobots.push(robot.id);
+        }
+        else if (robot.tasks.length > 0 && idleRobots.includes(robot.id)) {
+            console.log(`Robot ${robot.id} is busy`);
+            idleRobots = idleRobots.filter(id => id !== robot.id);
+            updateRobotPosition(robot.position, robot.id)
+        }
+    });
+}
 
+function checkTasks() {
+    Object.values(robots).forEach(robot => {
+        if (robot.tasks.length > 0) {
+            var task = robot.tasks[0]; // Get the first task
+            var robotPosition = robot.position;
+            var taskPosition = { x: task.x, y: task.y };
+
+            console.log(robotPosition, taskPosition);
+            if((robotPosition.x == taskPosition.x) && (robotPosition.y == taskPosition.y)) {
+                console.log(`Robot ${robot.id} has completed task at (${task.x}, ${task.y})`);
+                robot.tasks.shift(); // Remove the completed task from the robot's tasks
+                console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
+                generateTask();
+                idleRobots.push(robot.id); // Add robot back to idle robots
+                console.log(`Robot ${robot.id} is now idle.`);
+            }
+        }
+    });
+}
 
 // main code
 for (let i = 0; i < 5; i++) {
     generateTask();
 }
 
+
 console.log("Tasks generated:", taskQueue);
 
 setInterval(() => {
     planTasks();
-    
-   
+    checkIdleRobots();
 }, 100);

@@ -38,6 +38,7 @@ Elk bericht wordt verzonden in een json
 ```json
   {
    "robot_id" : "robotID",
+   "start_pos": {"x":2, "y":1, "direction": "north"},
    "robot_taskload": ["taskload"]
   }
 
