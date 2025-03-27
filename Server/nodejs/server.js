@@ -2,6 +2,7 @@ const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
 const brokerIP = "192.168.1.105";
 
+let powerState = 1;
 let robots = [];
 let obstacles = [];
 let idleRobots = [];
@@ -19,7 +20,8 @@ client.on('connect', () => {
     const topics = [
         'robots/registration',
         'robots/position/#',
-        'robots/obstacle/#'
+        'robots/obstacle/#',
+        'system/powerControl'
     ];
 
     client.subscribe(topics, (err) => {
@@ -37,6 +39,8 @@ client.on('message', (topic, message) => {
     try {
         const payload = JSON.parse(message);
         const positionRegex = /^robots\/position\/(.+)$/;
+        const obstacleRegex = /^robots\/obstacle\/(.+)$/;
+        const powerControlRegex = /^system\/powerControl$/;
 
         if (topic === 'robots/registration') {
             registerRobot(payload);
@@ -44,7 +48,12 @@ client.on('message', (topic, message) => {
             const match = positionRegex.exec(topic);
             const robotId = match[1];
             updateRobotPosition(payload, robotId);
-        } else {
+        }
+        else if (powerControlRegex.test(topic)){
+            powerState = payload.state;
+            console.log(`Power state changed to: ${powerState}`);
+        }
+         else {
             console.log(`Unhandled topic: ${topic}`);
         }
     } catch (error) {
@@ -95,9 +104,11 @@ function updateRobotPosition(payload, robotId) {
     console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
     if (robots[robotId].tasks.length > 0) {
+        if(powerState == 1){
         let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0]);
         console.log(`Calculated path for robot ${robotId}:`, path);
         client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
+        }
     } else {
         if (!idleRobots.includes(robotId)) {
             idleRobots.push(robotId);
@@ -324,7 +335,7 @@ function checkTasks() {
             var taskPosition = { x: task.x, y: task.y };
 
             console.log(robotPosition, taskPosition);
-            if((robotPosition.x == taskPosition.x) && (robotPosition.y == taskPosition.y)) {
+            if ((robotPosition.x == taskPosition.x) && (robotPosition.y == taskPosition.y)) {
                 console.log(`Robot ${robot.id} has completed task at (${task.x}, ${task.y})`);
                 robot.tasks.shift(); // Remove the completed task from the robot's tasks
                 console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
@@ -345,6 +356,9 @@ for (let i = 0; i < 5; i++) {
 console.log("Tasks generated:", taskQueue);
 
 setInterval(() => {
+if (powerState == 1) {
     planTasks();
     checkIdleRobots();
+}
+
 }, 100);
