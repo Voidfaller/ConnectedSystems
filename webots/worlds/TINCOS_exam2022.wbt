@@ -1,17 +1,17 @@
 #VRML_SIM R2025a utf8
 
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/factory/containers/protos/WoodenBox.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/RectangleArena.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
 EXTERNPROTO "../protos/mqtt_robot.proto"
+EXTERNPROTO "../protos/WoodenBox.proto"
 
 WorldInfo {
   basicTimeStep 100
 }
 Viewpoint {
-  orientation 0.08081685450363106 0.9508866418714592 -0.2988029958661028 1.0227300434593702
-  position -1.0823023881232052 1.142763347763199 2.1049861243731223
+  orientation -0.30216298915096207 0.2023672042092763 0.931528337007456 1.7832610007885672
+  position 0.6180769815216005 -1.6381022964260517 1.4747723992853383
 }
 TexturedBackground {
 }
@@ -113,62 +113,19 @@ WoodenBox {
   name "stelling5"
   size 0.1 0.3 0.1
 }
-Robot {
-  translation 0 0.5 0.05
-  children [
-    DistanceSensor {
-      name "ds0"
-    }
-    DistanceSensor {
-      rotation 0 0 1 1.5707996938995747
-      name "ds1"
-    }
-    DistanceSensor {
-      rotation 0 0 1 3.141592653589793
-      name "ds2"
-    }
-    DistanceSensor {
-      rotation 0 0 1 -1.570795613280012
-      name "ds3"
-    }
-    Shape {
-      appearance Appearance {
-        material Material {
-          diffuseColor 1 0 1
-        }
-      }
-      geometry DEF shape Cylinder {
-        height 0.1
-        radius 0.04
-      }
-    }
-  ]
-  name "indringer"
-  boundingObject USE shape
-  controller "intruder"
-  supervisor TRUE
-}
 mqtt_robot {
-  translation 0 0 0.05
+  translation 0 0 0.04
   name "robot_1"
 }
 mqtt_robot {
-  translation 0 1 0.05
-  name "robot_2"
-}
-mqtt_robot {
-  translation 1 1 0.05
+  translation 0 1 0.04
   name "robot_3"
 }
 mqtt_robot {
-  translation 1 0 0.05
-  name "robot_4"
+  translation 1 0 0.04
+  name "robot_2"
 }
-Robot {
-  children [
-    DistanceSensor {
-    }
-    Camera {
-    }
-  ]
+mqtt_robot {
+  translation 1 1 0.04
+  name "robot_4"
 }

@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "192.168.1.105"; // Replace with broker IP adres
+let brokerIp = "145.137.68.141"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
