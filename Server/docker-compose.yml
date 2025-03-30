@@ -1,0 +1,27 @@
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt_broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - mqtt_network
+
+  backend:
+    build: ./nodejs
+    container_name: backend_server
+    working_dir: /app
+    depends_on:
+      - mqtt-broker
+    restart: always
+    volumes:
+      - ./nodejs:/app
+    networks:
+      - mqtt_network
+    command: sh -c "npm install && npm run start"
+networks:
+  mqtt_network:
+    driver: bridge

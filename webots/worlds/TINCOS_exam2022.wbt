@@ -1,0 +1,131 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "../protos/mqtt_robot.proto"
+EXTERNPROTO "../protos/WoodenBox.proto"
+
+WorldInfo {
+  basicTimeStep 100
+}
+Viewpoint {
+  orientation -0.30216298915096207 0.2023672042092763 0.931528337007456 1.7832610007885672
+  position 0.6180769815216005 -1.6381022964260517 1.4747723992853383
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  translation 0.5 0.5 0
+  floorSize 1.1 1.1
+  floorTileSize 0.2 0.2
+  wallHeight 0.06
+}
+Pose {
+  translation 0 0 0.001
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 1 0 0
+        }
+      }
+      geometry Plane {
+        size 0.1 0.1
+      }
+    }
+  ]
+}
+Pose {
+  translation 1 0 0.001
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 1 1 0
+        }
+      }
+      geometry Plane {
+        size 0.1 0.1
+      }
+    }
+  ]
+}
+Pose {
+  translation 1 1 0.001
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 0 1 0
+        }
+      }
+      geometry Plane {
+        size 0.1 0.1
+      }
+    }
+  ]
+}
+Pose {
+  translation 0 1 0.001
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+          diffuseColor 0 0 1
+        }
+      }
+      geometry Plane {
+        size 0.1 0.1
+      }
+    }
+  ]
+}
+WoodenBox {
+  translation 0.8 0.7 0.05
+  name "stelling0"
+  size 0.1 0.3 0.1
+}
+WoodenBox {
+  translation 0.5 0.2 0.05
+  name "stelling1"
+  size 0.7 0.1 0.1
+}
+WoodenBox {
+  translation 0.5 0.4 0.05
+  name "stelling2"
+  size 0.7 0.1 0.1
+}
+WoodenBox {
+  translation 0.2 0.7 0.05
+  name "stelling3"
+  size 0.1 0.3 0.1
+}
+WoodenBox {
+  translation 0.4 0.7 0.05
+  name "stelling4"
+  size 0.1 0.3 0.1
+}
+WoodenBox {
+  translation 0.6 0.7 0.05
+  name "stelling5"
+  size 0.1 0.3 0.1
+}
+mqtt_robot {
+  translation 0 0 0.04
+  name "robot_1"
+}
+mqtt_robot {
+  translation 0 1 0.04
+  name "robot_3"
+}
+mqtt_robot {
+  translation 1 0 0.04
+  name "robot_2"
+}
+mqtt_robot {
+  translation 1 1 0.04
+  name "robot_4"
+}
