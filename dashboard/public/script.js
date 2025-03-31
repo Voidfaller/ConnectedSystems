@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "145.137.68.141"; // Replace with broker IP adres
+let brokerIp = "145.137.57.176"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -14,9 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopButton = document.getElementById("buttonStop");
     startButtton.addEventListener("click", function () {
         start();
+        console.log("start");
     });
     stopButton.addEventListener("click", function () {
         stop();
+        console.log("stop");
     });
 
     connectMQTT();
@@ -38,10 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function placeObject(object, x, y) {
         const colorMapping = {
-            'robot1': '#FF0000', // Red
-            'robot2': '#00FF00', // Green
-            'robot3': '#0000FF', // Blue
-            'robot4': '#FFFF00', // Yellow
+            'robot': '#FF0000', // Red
+            // 'robot_2': '#00FF00', // Green
+            // 'robot_3': '#0000FF', // Blue
+            // 'robot_4': '#FFFF00', // Yellow
             'box': '#FFA500' // Orange
         };
 
@@ -80,12 +82,35 @@ document.addEventListener('DOMContentLoaded', () => {
     generateButtons();
 
     
-    placeObject('robot2', 9, 0);
-    placeObject('robot3', 0, 9);
-    placeObject('robot4', 9, 9);
-    placeObject('robot1', 0, 0);
+    // placeObject('robot2', 9, 0);
+    // placeObject('robot3', 0, 9);
+    // placeObject('robot4', 9, 9);
+    // placeObject('robot1', 0, 0);
+
 
     placeObject('box', 5, 5);
+    client.on("message", (topic, message) => {
+        const payload = JSON.parse(message.toString());
+        console.log("Received message:", topic, payload);
+        if (topic === "robots/world/obstacles") {
+            const obstacles = payload.obstacles;
+            obstacles.forEach((obstacle) => {
+                const x = obstacle.x;
+                const y = obstacle.y;
+                placeObject('box', x, y);
+            });
+        } else if (topic.startsWith("robots/position/")) {
+            const robotId = topic.split("/")[2];       
+            if(robotId.startsWith("robot")){
+                const robotNumber = parseInt(robotId.replace("robot", ""), 10); // Extract the number from "robotId"
+                console.log("robot id : "+ robotId);
+                console.log("robot number : "+ robotNumber);
+                const x = payload.x;
+                const y = payload.y;
+                placeObject(`robot${robotNumber}`, x, y);
+            }
+        }
+    });
     
 
 });
