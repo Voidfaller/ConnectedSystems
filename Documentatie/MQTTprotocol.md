@@ -79,92 +79,25 @@ Elk bericht wordt verzonden in een json
       "obstacle_type": "wall"
 }
 ```
+
 ---
 
-### **4.4 Taaktoewijzing (task_assignment)**  
-**Verstuurd door:** Server  
-**Doel:** De server geeft een command aan de robot.  
-
-**Topic:** `robots/robotID/task`  
-**Payload:**  
-```json
-{
-      "action": "pickup",
-}
-```
----
-
-### ** 
+ 
 ### **4.5 Path Update**  
 **Verstuurd door:** Server  
-**Doel:** De robot stuurt zijn huidige status naar de server.  
+**Doel:** De server stuurt de kortste beschikbare route naar de robot.  
 
 **Topic:** `robots/pathUpdate/<robotID>`  
 **Payload:**  
 ```json
 {
       "path": [
-         {"x": 1, "y":2,
-          "x": 5, "y":1,
-          "x":1, "y":4}
+         "1,1", "2,1", "2,2"
       ]
 }
 ```
-
 ---
 
-### **4.6 Bevestiging (acknowledgment)**  
-**Verstuurd door:** Robots / Server  
-**Doel:** Bevestiging dat een bericht is ontvangen.  
-
-**Topic:** `robots/acknowledgments`  
-**Payload:**  
-```json
-{
-   "sender": "robot_45",
-   "type": "acknowledgment",
-   "timestamp": 1707052860,
-   "data": {
-      "received_message_id": "12323466"
-   }
-}
-```
----
-### **4.7 Synchronisatie verzoek (sync_request)**  
-**Verstuurd door:** Robots
-**Doel:** Een robot vraagt alle bekende informatie op.
-
-
-#### **1. Robot vraagt synchronisatie aan**
-**Topic:** `robots/updates/sync/robot_12`
-**Payload:** 
-```json
-{
-   "sender": "robot_45",
-   "type": "sync_request",
-   "timestamp": 1707052860,
-   "data": {
-      "last_sync_timestamp": 17070528603
-   }
-}
-```
-
-#### **2. Server stuurt sync bericht**
-**Topic:** `robots/updates/sync/robot_12`
-**Payload:**
-```json
-{
-   "sender": "server",
-   "type": "",
-   "timestamp": 129478124,
-   "data":{
-      "task"
-      "obstacles":[{"x": 6, "y": -2, "object_type":"wall"}, {"x": 12, "y": 4, "object_type":"box"}] 
-   }
-}
-```
-
----
 
 ### **4.8 start en stop**  
 **Verstuurd door:** Dashboard / Fysieke unit  
@@ -179,37 +112,8 @@ Elk bericht wordt verzonden in een json
 ```
 ---
 
-### **4.9 Foutafhandeling (error)**  
-**Verstuurd door:** Robots / Server  
-**Doel:** Een bericht is niet correct verwerkt of begrepen.  
-
-**Topic:** `robots/errors`  
-**Payload:**  
-```json
-{
-   "sender": "robot_12",
-   "type": "error",
-   "timestamp": 1279841495,
-   "data": {
-      "error_code": 400,
-      "error_message": "Bad Request"
-   }
-}
-```
-
 -----
-## 5 Mogelijke foutcodes
-| Error Code | Betekenis                                               |
-| ---------- | ------------------------------------------------------- |
-| **400**    | Bad Request - Ongeldig berichtformaat                   |
-| **401**    | Unauthorized - Robot niet geautoriseerd                 |
-| **403**    | Forbidden - Toegang geweigerd                           |
-| **404**    | Not Found - Gevraagde resource niet gevonden            |
-| **408**    | Timeout - Geen respons ontvangen                        |
-| **500**    | Internal Server Error - Serverfout                      |
-| **503**    | Service Unavailable - Server tijdelijk niet beschikbaar |
----
-
+## 5 Mogelijke fouten
 ## 6. Conclusie  
 Dit protocol zorgt ervoor dat de communicatie tussen de server en de robots gestructureerd, betrouwbaar en efficiënt verloopt via MQTT. Door het gebruik van specifieke topics en gestandaardiseerde berichten kunnen robots en de server effectief met elkaar communiceren zonder dat er verwarring of conflicten ontstaan.  
 
