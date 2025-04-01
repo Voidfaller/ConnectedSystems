@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "145.137.57.176"; // Replace with broker IP adres
+let brokerIp = "145.137.59.194"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -12,6 +12,7 @@ const lastPlace = {
 document.addEventListener('DOMContentLoaded', () => {
     const startButtton = document.getElementById("buttonStart");
     const stopButton = document.getElementById("buttonStop");
+    const enterBurton = document.getElementById("enterButton");
     startButtton.addEventListener("click", function () {
         start();
         console.log("start");
@@ -20,6 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
         stop();
         console.log("stop");
     });
+    
+    enterBurton.addEventListener("click", function () {
+        const task_x = document.getElementById("task_x").value;
+        const task_y = document.getElementById("task_y").value;
+        const taskType = document.getElementById("load").value;
+
+        const payload = {
+            x: parseInt(task_x),
+            y: parseInt(task_y),
+            taskType: taskType
+        };
+
+        client.publish("robots/task", JSON.stringify(payload));
+        document.getElementById("task_x").value = "";
+        document.getElementById("task_y").value = "";
+    });
+
     function randomColor() {
         const letters = '0123456789ABCDEF';
         let color = '#';
