@@ -24,7 +24,8 @@ client.on('connect', () => {
         'robots/registration',
         'robots/position/#',
         'robots/obstacle/#',
-        'system/powerControl'
+        'server/powerControl',
+        'server/task'
     ];
 
     client.subscribe(topics, (err) => {
@@ -43,7 +44,8 @@ client.on('message', (topic, message) => {
         const payload = JSON.parse(message);
         const positionRegex = /^robots\/position\/(.+)$/;
         const obstacleRegex = /^robots\/obstacle\/(.+)$/;
-        const powerControlRegex = /^system\/powerControl$/;
+        const powerControlRegex = /^server\/powerControl$/;
+        const taskRegex = /^server\/task$/;
 
         if (topic === 'robots/registration') {
             registerRobot(payload);
@@ -55,19 +57,7 @@ client.on('message', (topic, message) => {
         else if (powerControlRegex.test(topic)) {
             powerState = payload.state;
             console.log(`Power state changed to: ${powerState}`);
-
-            if (powerState == 1) {
-                console.log("System powering back ON. Resuming robot tasks...");
-
-                Object.values(robots).forEach(robot => {
-                    if (robot.tasks.length > 0) {
-                        let path = dijkstra(robot.position, robot.tasks[0], robot.id);
-                        if (path.length > 0) {
-                            client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
-                        }
-                    }
-                });
-            }
+            handlePowerstateChange();
         }
         else if (obstacleRegex.test(topic)) {
             const match = obstacleRegex.exec(topic);
@@ -87,6 +77,16 @@ client.on('message', (topic, message) => {
             client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
 
 
+        }
+
+        else if (taskRegex.test(topic)) {
+            console.log("Task received from server:", payload);
+            if (payload.taskType && payload.x !== undefined && payload.y !== undefined) {
+                taskQueue.push(payload);
+                console.log(`Task added:`, payload);
+            } else {
+                console.error("Invalid task format:", payload);
+            }
         }
         else {
             console.log(`Unhandled topic: ${topic}`);
@@ -112,6 +112,21 @@ function registerRobot(payload) {
         idleRobots.push(assignedId);
     }
     console.log(`Robot ${assignedId} is idle`);
+}
+
+function handlePowerstateChange() {
+    if (powerState == 1) {
+        console.log("System powering back ON. Resuming robot tasks...");
+
+        Object.values(robots).forEach(robot => {
+            if (robot.tasks.length > 0) {
+                let path = dijkstra(robot.position, robot.tasks[0], robot.id);
+                if (path.length > 0) {
+                    client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
+                }
+            }
+        });
+    }
 }
 
 // Update robot position & recalculate path
@@ -143,12 +158,24 @@ function updateRobotPosition(payload, robotId) {
     //console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
     if (robots[robotId].tasks.length > 0) {
-
-        let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0], robotId);
-        //console.log(`Calculated path for robot ${robotId}:`, path);
+        const currentTask = robots[robotId].tasks[0];
+        const endNode = `${currentTask.x},${currentTask.y}`;
+        if (!graph.has(endNode)) {
+            console.warn(`Task destination ${endNode} for robot ${robotId} is no longer valid.`);
+            // Remove the task
+            robots[robotId].tasks.shift();
+            // Optionally add the robot back to idle
+            if (!idleRobots.includes(robotId)) {
+                idleRobots.push(robotId);
+                console.log(`Robot ${robotId} is now idle due to invalid task destination.`);
+            }
+            return;
+        }
+    
+        let path = dijkstra(robots[robotId].position, currentTask, robotId);
         client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
-
-    } else {
+    }
+    else {
         if (!idleRobots.includes(robotId)) {
             idleRobots.push(robotId);
             //console.log(`Robot ${robotId} is now idle.`);
@@ -187,8 +214,12 @@ function dijkstra(start, end, robotId) {
     const startNode = `${start.x},${start.y}`;
     const endNode = `${end.x},${end.y}`;
 
-    if (!graph.has(startNode) || !graph.has(endNode)) {
-        console.error(`Start or end node not found in graph.`);
+    if (!graph.has(startNode)) {
+        console.warn("Missing startNode:", startNode);
+        return [];
+    }
+    if (!graph.has(endNode)) {
+        console.warn("Missing endNode:", endNode);
         return [];
     }
 
@@ -404,7 +435,6 @@ function checkTasks() {
                 console.log(`Robot ${robot.id} has completed task at (${task.x}, ${task.y})`);
                 robot.tasks.shift(); // Remove the completed task
                 console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
-                generateTask();
                 idleRobots.push(robot.id); // Add robot back to idle robots
                 console.log(`Robot ${robot.id} is now idle.`);
             } else {
@@ -423,10 +453,7 @@ function checkTasks() {
 }
 
 
-// main code
-for (let i = 0; i < 5; i++) {
-    generateTask();
-}
+
 
 
 console.log("Tasks generated:", taskQueue);
