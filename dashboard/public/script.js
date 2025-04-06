@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "145.137.59.194"; // Replace with broker IP adres
+let brokerIp = "192.168.56.1"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -15,13 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const enterBurton = document.getElementById("enterButton");
     startButtton.addEventListener("click", function () {
         start();
-        console.log("start");
     });
     stopButton.addEventListener("click", function () {
         stop();
-        console.log("stop");
     });
-    
+
     enterBurton.addEventListener("click", function () {
         const task_x = document.getElementById("task_x").value;
         const task_y = document.getElementById("task_y").value;
@@ -33,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
             taskType: taskType
         };
 
-        client.publish("robots/task", JSON.stringify(payload));
+        client.publish("server/task", JSON.stringify(payload));
         document.getElementById("task_x").value = "";
         document.getElementById("task_y").value = "";
     });
@@ -49,11 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectMQTT();
     function generateButtons() {
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 11; i++) {
             const row = document.createElement('div');
             row.className = 'row';
             row.setAttribute('data-row-id', i);
-            for (let j = 0; j < 10; j++) {
+            for (let j = 0; j < 11; j++) {
                 const col = document.createElement('button');
                 col.className = 'col';
                 col.setAttribute('data-position', `${j},${i}`);
@@ -64,43 +62,52 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('button-grid').appendChild(row);
         }
     }
+
     function placeObject(object, x, y) {
         const colorMapping = {
-            'robot1': '#FF0000', // Red
-            'robot2': '#00FF00', // Green
-            'robot3': '#0000FF', // Blue
-            'robot4': '#FFFF00', // Yellow
-            'box': '#FFA500' // Orange
+            'robot_1': '#FF0000', // Red
+            'robot_2': '#00FF00', // Green
+            'robot_3': '#0000FF', // Blue
+            'robot_4': '#FFFF00', // Yellow
+            'wooden box': '#FFA500'     // Orange
         };
 
         const button = document.querySelector(`button[data-position='${x},${y}']`);
-        if (object === 'box') {
+
+        if (object === 'wooden box') {
             button.style.backgroundColor = colorMapping[object];
             return;
         }
-        if (colorMapping[object] === undefined) {
-            colorMapping[object] = randomColor(); // Generate a random color for unknown objects
-            lastPlace[object] = { x: x, y: y }; // Initialize the last place for the object
-        }
 
-        console.log("new place of object : " + object, x, y);
-        console.log("old place: of object : " + lastPlace[object], lastPlace[object].x, lastPlace[object].y);
-        const buttonPrev = document.querySelector(`button[data-position='${lastPlace[object].x},${lastPlace[object].y}']`);
-        if (lastPlace[object].x != x || lastPlace[object].y != y) {
-            buttonPrev.style.backgroundColor = '#FFFFFF';
+        // Default to white if robot is new
+        if (!lastPlace[object]) {
+            lastPlace[object] = { x: x, y: y };
+        } else {
+            const lastX = lastPlace[object].x;
+            const lastY = lastPlace[object].y;
+
+            // Clear previous cell
+            const buttonPrev = document.querySelector(`button[data-position='${lastX},${lastY}']`);
+            if (buttonPrev) {
+                buttonPrev.style.backgroundColor = '#FFFFFF';
+            }
+
+            // Update last place
             lastPlace[object].x = x;
             lastPlace[object].y = y;
         }
 
-        button.style.backgroundColor = colorMapping[object];
+        // Apply color
+        button.style.backgroundColor = colorMapping[object] || colorMapping[object];
     }
+
 
 
     function start() {
         const payload = {
             state: 1
         };
-        client.publish("system/powerControl", JSON.stringify(payload));
+        client.publish("server/powerControl", JSON.stringify(payload));
         console.log("start");
 
     }
@@ -108,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             state: 0
         };
-        client.publish("system/powerControl", JSON.stringify(payload));
+        client.publish("server/powerControl", JSON.stringify(payload));
         console.log("stop");
     }
 
@@ -117,14 +124,15 @@ document.addEventListener('DOMContentLoaded', () => {
     client.on("message", (topic, message) => {
         const payload = JSON.parse(message.toString());
         console.log("Received message:", topic, payload);
-        if (payload.x < 0 || payload.x > 9 || payload.y < 0 || payload.y > 9) {
+        if (payload.x < 0 || payload.x > 10 || payload.y < 0 || payload.y > 10) {
             console.log("Invalid obstacle coordinates:", x, y);
             return;
         }
         if (topic.startsWith("robots/obstacle/")) {
-                const x = payload.x;
-                const y = payload.y;
-                placeObject('box', x, y);
+            const x = payload.x;
+            const y = payload.y;
+            const object = payload.obstacle_type;
+            placeObject(object, x, y);
 
         } else if (topic.startsWith("robots/position/")) {
             const robotId = topic.split("/")[2];

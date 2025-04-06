@@ -42,6 +42,7 @@ class MQTTSupervisor(Supervisor):
         self.distance_sensor.enable(int(self.getBasicTimeStep()))
         self.camera.enable(int(self.getBasicTimeStep()))
         self.camera.recognitionEnable(int(self.getBasicTimeStep()))
+        self.scanned = False  # Flag to indicate if an object has been scanned
         
     def _run_event_loop(self):
             """Runs the asyncio event loop in a separate thread."""
@@ -188,15 +189,16 @@ class MQTTSupervisor(Supervisor):
         else:
             print("No objects recognized.")
     
+    
     async def run(self):
         timestep = int(self.getBasicTimeStep())
         while self.step(timestep) != -1:
-            
-            if self.getDistanceSensorValue() < 1000:  # If the distance sensor detects an object within 10 cm
-                scanned = True
+            distance = self.getDistanceSensorValue()
+            if  distance < 1000 and not self.scanned:  # If the distance sensor detects an object within 10 cm
+                self.scanned = True
                 self.objectRecognition()
-            else:
-                scanned = False    
+            elif distance >= 1000:
+                self.scanned = False    
             
             if not self.moving:
                 self.moving = True
