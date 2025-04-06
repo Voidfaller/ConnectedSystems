@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "145.137.59.194"; // Replace with broker IP adres
+let brokerIp = "192.168.56.1"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -15,11 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const enterBurton = document.getElementById("enterButton");
     startButtton.addEventListener("click", function () {
         start();
-        console.log("start");
     });
     stopButton.addEventListener("click", function () {
         stop();
-        console.log("stop");
     });
     
     enterBurton.addEventListener("click", function () {
@@ -49,11 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectMQTT();
     function generateButtons() {
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 11; i++) {
             const row = document.createElement('div');
             row.className = 'row';
             row.setAttribute('data-row-id', i);
-            for (let j = 0; j < 10; j++) {
+            for (let j = 0; j < 11; j++) {
                 const col = document.createElement('button');
                 col.className = 'col';
                 col.setAttribute('data-position', `${j},${i}`);
@@ -65,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function placeObject(object, x, y) {
+       
         const colorMapping = {
             'robot1': '#FF0000', // Red
             'robot2': '#00FF00', // Green
@@ -117,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     client.on("message", (topic, message) => {
         const payload = JSON.parse(message.toString());
         console.log("Received message:", topic, payload);
-        if (payload.x < 0 || payload.x > 9 || payload.y < 0 || payload.y > 9) {
+        if (payload.x < 0 || payload.x > 10 || payload.y < 0 || payload.y > 10) {
             console.log("Invalid obstacle coordinates:", x, y);
             return;
         }

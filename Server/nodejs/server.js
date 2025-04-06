@@ -1,10 +1,10 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "145.137.59.194";
+const brokerIP = "192.168.56.1";
 
 
 
-let powerState = 1;
+let powerState = 0;
 let robots = [];
 let obstacles = [];
 let idleRobots = [];
@@ -52,19 +52,32 @@ client.on('message', (topic, message) => {
             const robotId = match[1];
             updateRobotPosition(payload, robotId);
         }
-        else if (powerControlRegex.test(topic)){
+        else if (powerControlRegex.test(topic)) {
             powerState = payload.state;
             console.log(`Power state changed to: ${powerState}`);
+
+            if (powerState == 1) {
+                console.log("System powering back ON. Resuming robot tasks...");
+
+                Object.values(robots).forEach(robot => {
+                    if (robot.tasks.length > 0) {
+                        let path = dijkstra(robot.position, robot.tasks[0], robot.id);
+                        if (path.length > 0) {
+                            client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
+                        }
+                    }
+                });
+            }
         }
         else if (obstacleRegex.test(topic)) {
             const match = obstacleRegex.exec(topic);
             robotId = match[1];
             console.log(`Obstacle detected by robot ${robotId}:`, payload);
-            if(!obstacles.some(obs => obs.x === payload.x && obs.y === payload.y)) {
+            if (!obstacles.some(obs => obs.x === payload.x && obs.y === payload.y)) {
                 obstacles.push({ x: payload.x, y: payload.y });
                 console.log(`Obstacle added at (${payload.x}, ${payload.y})`);
             }
-            else{
+            else {
                 console.log(`Obstacle already exists at (${payload.x}, ${payload.y})`);
             }
             // Remove the obstacle from the graph
@@ -72,10 +85,10 @@ client.on('message', (topic, message) => {
             let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0], robotId);
             //console.log(`Calculated path for robot ${robotId}:`, path);
             client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
-            
+
 
         }
-         else {
+        else {
             console.log(`Unhandled topic: ${topic}`);
         }
     } catch (error) {
@@ -123,14 +136,18 @@ function updateRobotPosition(payload, robotId) {
         direction: payload.direction
     };
 
+    if (powerState == 0) {
+        console.log(`Robot ${robotId} powered off.`);
+        return;
+    }
     //console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
     if (robots[robotId].tasks.length > 0) {
-        if(powerState == 1){
+
         let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0], robotId);
         //console.log(`Calculated path for robot ${robotId}:`, path);
         client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
-        }
+
     } else {
         if (!idleRobots.includes(robotId)) {
             idleRobots.push(robotId);
@@ -376,7 +393,7 @@ function checkTasks() {
             // Check if task is on obstacle
             if (obstacles.some(obs => obs.x === task.x && obs.y === task.y)) {
                 console.log(`Task at (${task.x}, ${task.y}) is blocked by an obstacle.`);
-                
+
                 // Remove the task from the robot's tasks
                 robot.tasks.shift(); // Remove the impossible task
                 return;
@@ -415,10 +432,10 @@ for (let i = 0; i < 5; i++) {
 console.log("Tasks generated:", taskQueue);
 
 setInterval(() => {
-if (powerState == 1) {
-    planTasks();
-    checkIdleRobots();
-    checkTasks();
-}
+    if (powerState == 1) {
+        planTasks();
+        checkIdleRobots();
+        checkTasks();
+    }
 
 }, 100);
