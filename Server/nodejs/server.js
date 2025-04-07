@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "192.168.56.1";
+const brokerIP = "145.137.68.141";
 
 
 

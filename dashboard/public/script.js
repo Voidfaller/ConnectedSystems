@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "192.168.56.1"; // Replace with broker IP adres
+let brokerIp = "145.137.68.141"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 col.setAttribute('data-position', `${j},${i}`);
                 col.style.backgroundColor = '#FFFFFF'; // Set default color to white
                 row.appendChild(col);
-
             }
             document.getElementById('button-grid').appendChild(row);
         }
