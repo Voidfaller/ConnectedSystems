@@ -118,14 +118,12 @@ mqtt_robot {
   name "robot_1"
 }
 mqtt_robot {
-  translation 0 1 0.04
-  name "robot_3"
-}
-mqtt_robot {
   translation 1 0 0.04
+  controller "MQTT_FOLLOWER1"
   name "robot_2"
 }
 mqtt_robot {
-  translation 1 1 0.04
-  name "robot_4"
+  translation 0 1 0.04
+  controller "MQTT_FOLLOWER1"
+  name "robot_3"
 }

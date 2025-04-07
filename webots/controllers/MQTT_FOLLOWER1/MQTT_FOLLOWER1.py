@@ -23,11 +23,23 @@ class MQTTSupervisor(Supervisor):
         self.target_pos = None
         self.current_direction = "north"  # Current direction of the robot
         self.current_rotation = self.getSelf().getField("rotation")  # Access rotation field
+        
+        self.ledNorth = self.getDevice("ledNorth")  # Access LED device
+        self.ledEast = self.getDevice("ledEast")
+        self.ledWest = self.getDevice("ledWest")
+        self.ledSouth = self.getDevice("ledSouth")
+        
         # MQTT setup
         self.client = mqtt.Client()
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.loop_start()  # Start the MQTT loop in a non-blocking way
+        
+        self.ledNorth.set(1)
+        self.ledEast.set(1)
+        self.ledWest.set(1)
+        self.ledSouth.set(1)
+        
         
            # ✅ Create an event loop for the MQTT thread
         self.loop = asyncio.new_event_loop()
@@ -44,6 +56,12 @@ class MQTTSupervisor(Supervisor):
         """Called when the client connects to the broker."""
         if rc == 0:
             print("Connected to MQTT broker successfully!")
+            
+        # Turn off all LEDs when connected
+            self.ledNorth.set(0)
+            self.ledEast.set(0)
+            self.ledWest.set(0)
+            self.ledSouth.set(0)
             # Publish a message once connected
             client.subscribe(f"robots/pathUpdate/{self.ROBOT_ID}")  # Subscribe to the path update topic
         else:
@@ -63,6 +81,32 @@ class MQTTSupervisor(Supervisor):
         except Exception as e:
             print(f"Error processing message: {e}")
 
+
+    def setLedDirection(self, direction):
+        if(direction == "north"):
+            self.ledNorth.set(1)
+            self.ledEast.set(0)
+            self.ledWest.set(0)
+            self.ledSouth.set(0)
+        elif(direction == "east"):
+            self.ledNorth.set(0)
+            self.ledEast.set(1)
+            self.ledWest.set(0)
+            self.ledSouth.set(0)
+        elif(direction == "west"):
+            self.ledNorth.set(0)
+            self.ledEast.set(0)
+            self.ledWest.set(1)
+            self.ledSouth.set(0)
+        elif(direction == "south"):
+            self.ledNorth.set(0)
+            self.ledEast.set(0)
+            self.ledWest.set(0)
+            self.ledSouth.set(1)
+        else:
+            print("Invalid direction specified for LED.")
+            return
+        
     async def handle_path_update(self, message):
         """Handle path updates asynchronously."""
         # Stop any ongoing movement
@@ -92,15 +136,19 @@ class MQTTSupervisor(Supervisor):
         if direction[0] > 0:
             self.current_direction = "east"
             self.current_rotation.setSFRotation([0, 0, 1, -1.57])
+            self.setLedDirection("east")
         elif direction[0] < 0:
             self.current_direction = "west"
             self.current_rotation.setSFRotation([0, 0, 1, 1.57])
+            self.setLedDirection("west")
         elif direction[1] > 0:
             self.current_direction = "north"
             self.current_rotation.setSFRotation([0, 0, 1, 0])
+            self.setLedDirection("north")
         elif direction[1] < 0:
             self.current_direction = "south"
             self.current_rotation.setSFRotation([0, 0, 1, 3.14])
+            self.setLedDirection("south")
         
         print(f"Moving to {target_pos}...")
         await self.move_robot(target_pos)  
