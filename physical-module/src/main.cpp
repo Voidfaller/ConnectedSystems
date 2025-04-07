@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
 #include <WiFi.h>
 
 #define BUTTON_PIN 12
@@ -17,11 +16,12 @@ const char *password = "meeskees";
 WiFiClient wifiClient;
 PubSubClient client = PubSubClient(wifiClient);
 
-IPAddress server(192,168,68,58); // MQTT broker IP address
+IPAddress server(192,168,183,138); // MQTT broker IP address
 
 const char *position_topic = "robots/position/robot_1";
 const char *system_topic = "system/powerControl";
 
+void sendStopJson(const char *topic, const char *key, int value);
 void processMessage(int messageSize);
 void processDirection(String direction);
 void setDirection(int pin);
@@ -29,6 +29,8 @@ void gpioInit();
 void reconnect();
 void wifiInit();
 void callback(char *topic, byte *payload, unsigned int length);
+
+unsigned long lastButtonPress = 0;
 
 void setup()
 {
@@ -45,7 +47,6 @@ void setup()
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
   if (!client.connected())
   {
     reconnect();
@@ -53,14 +54,11 @@ void loop()
 
   client.loop();
 
-  if(digitalRead(BUTTON_PIN) == 0)
+  if (digitalRead(BUTTON_PIN) == 0 && millis() - lastButtonPress > 1000)
   {
+    lastButtonPress = millis();
     Serial.println("Button pressed, sending message to MQTT broker");
-    JsonDocument doc;
-    doc["state"] = 0;
-    serializeJson(doc, Serial);
-    client.publish(system_topic, doc.as<String>().c_str());
-    delay(100); // Debounce delay
+    sendStopJson(system_topic, "state", 0);
   }
 }
 
@@ -89,29 +87,81 @@ void reconnect()
   }
 }
 
+void replace(char *string, char target, char replacement = '\0') {
+  int j = 0;
+  for (int i = 0; i < strlen(string); i++) {
+    if (string[i] != target) {
+      string[j++] = string[i];
+    } else if (replacement != '\0') {
+      string[j++] = replacement; // Voeg het vervangende teken toe
+    }
+  }
+  string[j] = '\0'; // Zorg voor een null-terminatie
+}
+
+void split_to_words(const char *delimiter, char *message, char words[][50])
+{
+  // Function to split a message based on " " that returns a string array of words
+  int i = 0;
+
+  // Filter the json "{" and "}" out
+  if (message[0] == '{')
+    message[0] = '\0';
+
+  size_t messageLength = strlen(message);
+  
+  if (message[messageLength - 1] == '}')
+    message[messageLength - 1] = '\0';
+
+  char *token = strtok(message, delimiter);
+  while (token != NULL)
+  {
+    strcpy(words[i], token);
+    words[i][strlen(words[i])] = '\0'; // Ensure null termination
+    token = strtok(NULL, delimiter);
+    i++;
+  }
+}
+
+void sendStopJson(const char *topic, const char *key, int value)
+{
+  char buffer[128];
+  buffer[0] = '{';
+  buffer[1] = '\0'; // Ensure null termination
+  strcat(buffer, "\"");
+  strcat(buffer, key);
+  strcat(buffer, "\":\"");
+  char valueStr[10];
+  itoa(value, valueStr, 10); // Convert integer to string
+  strcat(buffer, valueStr);
+  strcat(buffer, "\"}");
+
+  client.publish(topic, buffer);
+}
+
 void callback(char *topic, byte *payload, unsigned int length)
 {
   if (strcmp(topic, position_topic) == 0)
   {
     Serial.println("Position message received");
 
-    String message = "";
+    char message[256] = {0}; // Ensure the buffer is large enough
     for (int i = 0; i < length; i++)
     {
-      message += (char)payload[i];
+      message[i] = (char)payload[i];
     }
+    message[length] = '\0'; // Null-terminate the string
 
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, message);
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
-      return;
-    }
+    // Filter direction out of the JSON by splitting into nodes and then key and value
+    char nodes[10][50];
+    split_to_words(",", message, nodes);
+    char direction_node[10][50];
+    split_to_words(":", nodes[2], direction_node);
 
-    String direction = doc["direction"];
-    processDirection(direction);
-    Serial.println("Direction: " + direction);
+    replace(direction_node[1], '\"'); // Remove ""
+    replace(direction_node[1], ' ');  // Remove spaces
+    processDirection(direction_node[1]);
+    Serial.println("Direction: " + (String)direction_node[1]);
   }
   else
   {
@@ -140,7 +190,8 @@ void processDirection(String direction)
   else
   {
     Serial.println("Invalid direction received: " + direction);
-    for(int i=0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++){
+    for (int i = 0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++)
+    {
       digitalWrite(LED_PINS[i], HIGH);
     }
   }
@@ -155,11 +206,16 @@ void gpioInit()
   pinMode(WEST_LED_PIN, OUTPUT);
 }
 
-void setDirection(int pin){
-  for(int i=0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++){
-    if(LED_PINS[i] == pin){
+void setDirection(int pin)
+{
+  for (int i = 0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++)
+  {
+    if (LED_PINS[i] == pin)
+    {
       digitalWrite(pin, HIGH);
-    }else{
+    }
+    else
+    {
       digitalWrite(LED_PINS[i], LOW);
     }
   }
