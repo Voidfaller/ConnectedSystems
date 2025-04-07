@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "192.168.183.138";
+const brokerIP = "192.168.1.106";
 
 
 
@@ -103,8 +103,10 @@ function registerRobot(payload) {
     robots[assignedId] = {
         id: assignedId,
         position: { x: payload.start_pos.x * 10, y: payload.start_pos.y * 10, direction: payload.start_pos.direction },
+        start_pos: { x: payload.start_pos.x * 10, y: payload.start_pos.y * 10, direction: payload.start_pos.direction },
         taskLoad: payload.taskLoad || [],
-        tasks: []
+        tasks: [],
+        isReturning: false
     };
     console.log(`Registered new robot: ${assignedId}`);
     console.log(`Robot ${assignedId} position:`, robots[assignedId].position);
@@ -142,9 +144,9 @@ function updateRobotPosition(payload, robotId) {
         return;
     }
 
-    const previousPosition = robots[robotId].position;
 
-    console.log(`Updating position for robot ${robotId}:`, payload);
+
+    const previousPosition = robots[robotId].position;
 
     // Update the robot's position
     robots[robotId].position = {
@@ -161,6 +163,12 @@ function updateRobotPosition(payload, robotId) {
     }
     //console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
+    if (robots[robotId].isReturning) {
+        console.log(`Robot ${robotId} is returning to its original position.`);
+        path = dijkstra(robots[robotId].position, robots[robotId].start_pos, robotId);
+        client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
+    }
+
     if (robots[robotId].tasks.length > 0) {
         const currentTask = robots[robotId].tasks[0];
         const endNode = `${currentTask.x},${currentTask.y}`;
@@ -172,12 +180,12 @@ function updateRobotPosition(payload, robotId) {
             if (!idleRobots.includes(robotId)) {
                 idleRobots.push(robotId);
                 console.log(`Robot ${robotId} is now idle due to invalid task destination.`);
-            }else{
+            } else {
                 console.log(`Robot ${robotId} has an invalid task destination! And iv veryyy busy`);
             }
             return;
         }
-    
+
         let path = dijkstra(robots[robotId].position, currentTask, robotId);
         client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
     }
@@ -214,6 +222,7 @@ let reservedPaths = new Map();
 function dijkstra(start, end, robotId) {
     if (!start || !end) {
         console.error("Invalid start or end point for pathfinding.");
+        console.log("Start:", start, "End:", end);
         return [];
     }
 
@@ -399,6 +408,11 @@ function planTasks() {
                 taskQueue.splice(taskIndex, 1);
             }
 
+
+            // Make robot stop returning to original position
+            robot.isReturning = false; // Mark the robot as not returning
+
+
             const payload = {
                 status: "assign",
                 x: task.x,
@@ -406,6 +420,7 @@ function planTasks() {
                 taskType: task.taskType,
                 robotId: robot.id
             }
+
 
             client.publish('server/task/dashboard', JSON.stringify(payload));
 
@@ -418,15 +433,39 @@ function planTasks() {
 
 function checkIdleRobots() {
     Object.values(robots).forEach(robot => {
+        // Check if the robot is idle (no tasks assigned)
         if (robot.tasks.length === 0 && !idleRobots.includes(robot.id)) {
             console.log(`Robot ${robot.id} is idle`);
             idleRobots.push(robot.id);
+
+            //make robot go back to its original position
+            const originalPosition = robots[robot.id].start_pos;
+            console.log(`Original position for robot ${robot.id}:`, originalPosition);
+            if (!originalPosition) {
+                console.error(`Original position not found for robot ${robot.id}.`);
+                return;
+            }
+
+            // Check if the robot is already at its original position
+            if (robot.position.x === originalPosition.x && robot.position.y === originalPosition.y) {
+                robot.isReturning = false; // Mark the robot as not returning
+                return;
+            }
+            console.log(`Original position for robot ${robot.id}:`, originalPosition);
+            const path = dijkstra(robot.position, originalPosition, robot.id);
+            if (path.length > 0) {
+                robot.isReturning = true; // Mark the robot as returning
+                client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
+            } else {
+                console.log(`No path found for robot ${robot.id} to return to original position.`);
+            }
         }
         else if (robot.tasks.length > 0 && idleRobots.includes(robot.id)) {
             console.log(`Robot ${robot.id} is busy`);
             idleRobots = idleRobots.filter(id => id !== robot.id);
             updateRobotPosition(robot.position, robot.id)
         }
+
     });
 }
 
@@ -448,12 +487,45 @@ function checkTasks() {
                     taskType: task.taskType,
                     robotId: robot.id
                 }
-    
+
                 client.publish('server/task/dashboard', JSON.stringify(payload));
 
                 // Remove the task from the robot's tasks
                 robot.tasks.shift(); // Remove the impossible task
                 console.log(`Task at (${task.x}, ${task.y}) marked as impossible and removed.`);
+
+                // // add the robot back to idle robots if it has no tasks left
+                // if (robot.tasks.length === 0 && !idleRobots.includes(robot.id)) {
+                //     idleRobots.push(robot.id);
+                //     console.log(`Robot ${robot.id} is now idle after task removal.`);
+                // }
+
+
+                // Check if the robot has reached its task position
+                if ((robotPosition.x === taskPosition.x) && (robotPosition.y === taskPosition.y)) {
+                    console.log(`Robot ${robot.id} has completed task at (${task.x}, ${task.y})`);
+                    const payload = {
+                        status: "completed",
+                        x: task.x,
+                        y: task.y,
+                        taskType: task.taskType,
+                        robotId: robot.id
+                    }
+
+                    client.publish('server/task/dashboard', JSON.stringify(payload));
+
+                    robot.tasks.shift(); // Remove the completed task
+                    console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
+                }
+                else if (robot.tasks.length > 0) {
+                    // Recalculate path for the next task
+                    let path = dijkstra(robot.position, robot.tasks[0], robot.id);
+                    if (path.length > 0) {
+                        client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
+                    } else {
+                        console.log(`No path found for robot ${robot.id} to its next task.`);
+                    }
+                }
                 return;
             }
 
@@ -467,23 +539,29 @@ function checkTasks() {
                     taskType: task.taskType,
                     robotId: robot.id
                 }
-    
+
                 client.publish('server/task/dashboard', JSON.stringify(payload));
 
                 robot.tasks.shift(); // Remove the completed task
                 console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
-                idleRobots.push(robot.id); // Add robot back to idle robots
-                console.log(`Robot ${robot.id} is now idle.`);
-            } else {
-                // If the robot has a task but isn't moving, check if it's in failedTasks
-                if (failedTasks.has(robot.id)) {
-                    console.log(`Retrying pathfinding for robot ${robot.id}...`);
-                    let path = dijkstra(robot.position, robot.tasks[0], robot.id);
-                    if (path.length > 0) {
-                        failedTasks.delete(robot.id); // Remove from retry list if path is found
-                        client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
-                    }
+            }
+            else {
+                // If the robot is not moving and has tasks, check if it's in idleRobots
+                if (!idleRobots.includes(robot.id)) {
+                } else {
+                    console.log(`Robot ${robot.id} is idle`);
                 }
+            }
+
+            // If the robot has a task but isn't moving, check if it's in failedTasks
+            if (failedTasks.has(robot.id)) {
+                console.log(`Retrying pathfinding for robot ${robot.id}...`);
+                let path = dijkstra(robot.position, robot.tasks[0], robot.id);
+                if (path.length > 0) {
+                    failedTasks.delete(robot.id); // Remove from retry list if path is found
+                    client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
+                }
+
             }
         }
     });
