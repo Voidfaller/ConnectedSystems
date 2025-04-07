@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "145.137.68.141";
+const brokerIP = "192.168.183.138";
 
 
 
@@ -25,7 +25,8 @@ client.on('connect', () => {
         'robots/position/#',
         'robots/obstacle/#',
         'server/powerControl',
-        'server/task'
+        'server/task/target',
+        'server/task/dashboard'
     ];
 
     client.subscribe(topics, (err) => {
@@ -45,7 +46,7 @@ client.on('message', (topic, message) => {
         const positionRegex = /^robots\/position\/(.+)$/;
         const obstacleRegex = /^robots\/obstacle\/(.+)$/;
         const powerControlRegex = /^server\/powerControl$/;
-        const taskRegex = /^server\/task$/;
+        const taskRegex = /^server\/task\/target$/;
 
         if (topic === 'robots/registration') {
             registerRobot(payload);
@@ -143,6 +144,7 @@ function updateRobotPosition(payload, robotId) {
 
     const previousPosition = robots[robotId].position;
 
+    console.log(`Updating position for robot ${robotId}:`, payload);
 
     // Update the robot's position
     robots[robotId].position = {
@@ -150,6 +152,8 @@ function updateRobotPosition(payload, robotId) {
         y: payload.y,
         direction: payload.direction
     };
+
+    console.log(`Updated position for robot ${robotId}:`, robots[robotId].position);
 
     if (powerState == 0) {
         console.log(`Robot ${robotId} powered off.`);
@@ -168,6 +172,8 @@ function updateRobotPosition(payload, robotId) {
             if (!idleRobots.includes(robotId)) {
                 idleRobots.push(robotId);
                 console.log(`Robot ${robotId} is now idle due to invalid task destination.`);
+            }else{
+                console.log(`Robot ${robotId} has an invalid task destination! And iv veryyy busy`);
             }
             return;
         }
@@ -393,6 +399,16 @@ function planTasks() {
                 taskQueue.splice(taskIndex, 1);
             }
 
+            const payload = {
+                status: "assign",
+                x: task.x,
+                y: task.y,
+                taskType: task.taskType,
+                robotId: robot.id
+            }
+
+            client.publish('server/task/dashboard', JSON.stringify(payload));
+
             console.log(`Assigned task ${task.taskType} to robot ${robot.id} at (${task.x}, ${task.y})`);
         });
 
@@ -425,14 +441,35 @@ function checkTasks() {
             if (obstacles.some(obs => obs.x === task.x && obs.y === task.y)) {
                 console.log(`Task at (${task.x}, ${task.y}) is blocked by an obstacle.`);
 
+                const payload = {
+                    status: "impossible",
+                    x: task.x,
+                    y: task.y,
+                    taskType: task.taskType,
+                    robotId: robot.id
+                }
+    
+                client.publish('server/task/dashboard', JSON.stringify(payload));
+
                 // Remove the task from the robot's tasks
                 robot.tasks.shift(); // Remove the impossible task
+                console.log(`Task at (${task.x}, ${task.y}) marked as impossible and removed.`);
                 return;
             }
 
             // Check if the robot has reached its task position
             if ((robotPosition.x === taskPosition.x) && (robotPosition.y === taskPosition.y)) {
                 console.log(`Robot ${robot.id} has completed task at (${task.x}, ${task.y})`);
+                const payload = {
+                    status: "completed",
+                    x: task.x,
+                    y: task.y,
+                    taskType: task.taskType,
+                    robotId: robot.id
+                }
+    
+                client.publish('server/task/dashboard', JSON.stringify(payload));
+
                 robot.tasks.shift(); // Remove the completed task
                 console.log(`Robot ${robot.id} tasks after completion:`, robot.tasks);
                 idleRobots.push(robot.id); // Add robot back to idle robots

@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "145.137.68.141"; // Replace with broker IP adres
+let brokerIp = "192.168.183.138"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -10,30 +10,39 @@ const lastPlace = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const startButtton = document.getElementById("buttonStart");
+    const startButton = document.getElementById("buttonStart");
     const stopButton = document.getElementById("buttonStop");
-    const enterBurton = document.getElementById("enterButton");
-    startButtton.addEventListener("click", function () {
+    const enterButton = document.getElementById("enterButton");
+    startButton.addEventListener("click", function () {
         start();
     });
     stopButton.addEventListener("click", function () {
         stop();
     });
 
-    enterBurton.addEventListener("click", function () {
+    enterButton.addEventListener("click", function () {
         const task_x = document.getElementById("task_x").value;
         const task_y = document.getElementById("task_y").value;
         const taskType = document.getElementById("load").value;
+        const taskRobot = document.getElementById("robot_id").value;
 
         const payload = {
             x: parseInt(task_x),
             y: parseInt(task_y),
-            taskType: taskType
+            taskType: taskType,
+            robotId: taskRobot
         };
 
-        client.publish("server/task", JSON.stringify(payload));
+        if (validate_target(payload.x, payload.y, payload.robotId) == 1) {
+            client.publish("server/task/target", JSON.stringify(payload));
+            addTaskToListTable(payload);
+        } else {
+            alert("Invalid input!");
+        }
+
         document.getElementById("task_x").value = "";
         document.getElementById("task_y").value = "";
+        document.getElementById("robot_id").value = "";
     });
 
     function randomColor() {
@@ -141,6 +150,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 const y = payload.y;
                 placeObject(robotId, x, y);
             }
+        } else if (topic.startsWith("server/task/dashboard")) {
+            const task = payload;
+            const taskRows = document.querySelectorAll("#tasklist-box tr");
+
+            let taskRow = null;
+
+            taskRows.forEach((row) => {
+                const locationCell = row.children[0]; // Assuming the first column is the target location
+                if (locationCell.textContent === `(${task.x}, ${task.y})`) {
+                    taskRow = row;
+                }
+            });
+
+            if (taskRow) {
+                if (task.status == "completed") {
+                    const statusCell = taskRow.children[3]; // Assuming the 4th column is for status
+                    statusCell.textContent = "Completed";
+                                        
+                    console.log(`Task (${task.x}, ${task.y}) updated: Robot ID = ${task.robotId}, Status = Completed`);
+                } else if(task.status == "impossible"){
+                    const statusCell = taskRow.children[3]; // Assuming the 4th column is for status
+                    statusCell.textContent = "Impossible";
+                                        
+                    console.log(`Task (${task.x}, ${task.y}) updated: Robot ID = ${task.robotId}, Status = Impossible`);
+                } else {
+                    // Update the robot ID column
+                    const robotIdCell = taskRow.children[2]; // Assuming the 3rd column is for robot ID
+                    robotIdCell.textContent = task.robotId;
+
+                    // Update the status column
+                    const statusCell = taskRow.children[3]; // Assuming the 4th column is for status
+                    statusCell.textContent = "In Progress";
+                    
+                    console.log(`Task (${task.x}, ${task.y}) updated: Robot ID = ${task.robotId}, Status = In Progress`);
+                }
+
+
+            } else {
+                console.warn(`Task (${task.x}, ${task.y}) not found in the task list.`);
+            }
         }
     });
 
@@ -149,11 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // topics to subscribe to
 const topics = [
-    "robots/world/obstacles", "robots/position/#", "robots/obstacle/#"];
+    "robots/world/obstacles", "robots/position/#", "robots/obstacle/#", "server/task/dashboard"];
 
 function connectMQTT() {
     const brokerUrl = `ws://${brokerIp}:9001`;
-    client = mqtt.connect(brokerUrl);
+    client = mqtt.connect(brokerUrl, { clientId: 'dashboard' });
     client.on("connect", () => {
         console.log("Connected to MQTT broker");
         topics.forEach((topic) => {
@@ -166,5 +215,49 @@ function connectMQTT() {
             });
         });
     });
+};
+
+function validate_target(x, y, robot_id = "") {
+    // Validate if target location is within the grid
+    if (x < 0 || x > 10 || y < 0 || y > 10 || isNaN(x) || isNaN(y)) {
+        return 0;
+    }
+
+    // Validate whether a valid robot_id is in the correct range or not entered
+    if ((robot_id !== "" || isNaN(robot_id)) && (robot_id < 1 || robot_id > 4)) {
+        return 0;
+    }
+
+    return 1;
 }
 
+function addTaskToListTable(taskinfo) {
+    const tasklistBox = document.getElementById("tasklist-box");
+
+    // Create a new row
+    const row = document.createElement("tr");
+    row.setAttribute("id", `(${taskinfo.x}, ${taskinfo.y})`);
+
+    // Create and populate the first column (target location)
+    const locationCell = document.createElement("td");
+    locationCell.textContent = `(${taskinfo.x}, ${taskinfo.y})`;
+    row.appendChild(locationCell);
+
+    // Create and populate the first column (target location)
+    const typeCell = document.createElement("td");
+    typeCell.textContent = `${taskinfo.taskType}`;
+    row.appendChild(typeCell);
+
+    // Create and populate the second column (robot ID)
+    const robotIdCell = document.createElement("td");
+    robotIdCell.textContent = taskinfo.robotId || "N/A"; // Default to "N/A" if robotId is not provided
+    row.appendChild(robotIdCell);
+
+    // Create and populate the third column (status)
+    const statusCell = document.createElement("td");
+    statusCell.textContent = taskinfo.status || "Pending"; // Default to "Pending" if status is not provided
+    row.appendChild(statusCell);
+
+    // Append the row to the table
+    tasklistBox.appendChild(row);
+}
