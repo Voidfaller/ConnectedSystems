@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 
 #define BUTTON_PIN 12
@@ -16,7 +17,7 @@ const char *password = "meeskees";
 WiFiClient wifiClient;
 PubSubClient client = PubSubClient(wifiClient);
 
-IPAddress server(192,168,183,138); // MQTT broker IP address
+IPAddress server(192, 168, 180, 138); // MQTT broker IP address
 
 const char *position_topic = "robots/position/robot_1";
 const char *system_topic = "system/powerControl";
@@ -87,12 +88,17 @@ void reconnect()
   }
 }
 
-void replace(char *string, char target, char replacement = '\0') {
+void replace(char *string, char target, char replacement = '\0')
+{
   int j = 0;
-  for (int i = 0; i < strlen(string); i++) {
-    if (string[i] != target) {
+  for (int i = 0; i < strlen(string); i++)
+  {
+    if (string[i] != target)
+    {
       string[j++] = string[i];
-    } else if (replacement != '\0') {
+    }
+    else if (replacement != '\0')
+    {
       string[j++] = replacement; // Voeg het vervangende teken toe
     }
   }
@@ -106,10 +112,10 @@ void split_to_words(const char *delimiter, char *message, char words[][50])
 
   // Filter the json "{" and "}" out
   if (message[0] == '{')
-    message[0] = '\0';
+    message[0] = ' ';
 
   size_t messageLength = strlen(message);
-  
+
   if (message[messageLength - 1] == '}')
     message[messageLength - 1] = '\0';
 
@@ -145,23 +151,37 @@ void callback(char *topic, byte *payload, unsigned int length)
   {
     Serial.println("Position message received");
 
-    char message[256] = {0}; // Ensure the buffer is large enough
-    for (int i = 0; i < length; i++)
+    // Ensure the payload is null-terminated
+    char message[256] = {0};
+    strncpy(message, (char *)payload, length);
+    message[length] = '\0';
+
+    Serial.print("Raw message: ");
+    Serial.println(message);
+
+    // Parse the JSON
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, message);
+
+    if (error)
     {
-      message[i] = (char)payload[i];
+      Serial.print("JSON deserialization failed: ");
+      Serial.println(error.c_str());
+      return;
     }
-    message[length] = '\0'; // Null-terminate the string
 
-    // Filter direction out of the JSON by splitting into nodes and then key and value
-    char nodes[10][50];
-    split_to_words(",", message, nodes);
-    char direction_node[10][50];
-    split_to_words(":", nodes[2], direction_node);
+    // Extract the direction
+    const char *direction = doc["direction"];
+    if (direction == nullptr)
+    {
+      Serial.println("Direction not found in JSON!");
+      return;
+    }
 
-    replace(direction_node[1], '\"'); // Remove ""
-    replace(direction_node[1], ' ');  // Remove spaces
-    processDirection(direction_node[1]);
-    Serial.println("Direction: " + (String)direction_node[1]);
+    Serial.print("Direction: ");
+    Serial.println(direction);
+
+    processDirection(String(direction));
   }
   else
   {
