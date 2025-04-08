@@ -1,2 +1,4 @@
 .vscode
 Server/nodejs/*
+/.vscode
+physical-module/.vscode
