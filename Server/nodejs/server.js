@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "192.168.1.106";
+const brokerIP = "145.137.68.141";
 
 
 
@@ -25,8 +25,7 @@ client.on('connect', () => {
         'robots/position/#',
         'robots/obstacle/#',
         'server/powerControl',
-        'server/task/target',
-        'server/task/dashboard'
+        'server/task/target'
     ];
 
     client.subscribe(topics, (err) => {
@@ -73,21 +72,46 @@ client.on('message', (topic, message) => {
             }
             // Remove the obstacle from the graph
             graph.delete(`${payload.x},${payload.y}`);
-            let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0], robotId);
-            //console.log(`Calculated path for robot ${robotId}:`, path);
-            client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
+            if (robots[robotId].tasks.length > 0) {
+                let path = dijkstra(robots[robotId].position, robots[robotId].tasks[0], robotId);
+                client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
+            }
+            else if (robots[robotId].isReturning) {
+                let path = dijkstra(robots[robotId].position, robots[robotId].start_pos, robotId);
+                client.publish(`robots/pathUpdate/${robotId}`, JSON.stringify({ "path": path }));
+            }
+
+
 
 
         }
 
         else if (taskRegex.test(topic)) {
-            console.log("Task received from server:", payload);
-            if (payload.taskType && payload.x !== undefined && payload.y !== undefined) {
-                taskQueue.push(payload);
-                console.log(`Task added:`, payload);
-            } else {
-                console.error("Invalid task format:", payload);
+            console.log(`Task received:`, payload);
+            if (payload.x < 0 || payload.x > 10 || payload.y < 0 || payload.y > 10) {
+                console.log("Invalid task coordinates:", payload.x, payload.y);
+                return;
             }
+
+            if (obstacles.some(obs => obs.x === payload.x && obs.y === payload.y)) {
+                console.log("Task coordinates are blocked by an obstacle:", payload.x, payload.y);
+                return;
+            }
+
+            if (payload.robotId !== "") {
+                if (!robots[payload.robotId]) {
+                    console.error(`Robot ${payload.robotId} is not registered.`);
+                    return;
+                }
+                if (robots[payload.robotId].taskLoad.includes(payload.taskType)) {
+                    console.log("Yo");
+                    robots[payload.robotId].tasks.push({ x: payload.x, y: payload.y, taskType: payload.taskType });
+                    console.log(`Task added to robot ${payload.robotId}:`, payload);
+                    return;
+                }
+            }
+            taskQueue.push(payload);
+            console.log(`Task added to queue:`, payload);
         }
         else {
             console.log(`Unhandled topic: ${topic}`);
@@ -220,12 +244,6 @@ function generateGraph(size) {
 let reservedPaths = new Map();
 
 function dijkstra(start, end, robotId) {
-    if (!start || !end) {
-        console.error("Invalid start or end point for pathfinding.");
-        console.log("Start:", start, "End:", end);
-        return [];
-    }
-
     const startNode = `${start.x},${start.y}`;
     const endNode = `${end.x},${end.y}`;
 

@@ -1,5 +1,5 @@
 let client;
-let brokerIp = "192.168.183.138"; // Replace with broker IP adres
+let brokerIp = "145.137.68.141"; // Replace with broker IP adres
 
 // Move lastPlace outside of placeObject to retain its state
 const lastPlace = {
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     connectMQTT();
     function generateButtons() {
-        for (let i = 0; i < 11; i++) {
+        for (let i = 10; i >= 0; i--) {
             const row = document.createElement('div');
             row.className = 'row';
             row.setAttribute('data-row-id', i);
