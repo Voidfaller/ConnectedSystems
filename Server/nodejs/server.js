@@ -1,6 +1,6 @@
 const mqtt = require('mqtt');
 const munkres = require('munkres-js'); // Hungarian Algorithm library
-const brokerIP = "145.137.68.141";
+const brokerIP = "192.168.180.137";
 
 
 
@@ -145,12 +145,17 @@ function handlePowerstateChange() {
     if (powerState == 1) {
         console.log("System powering back ON. Resuming robot tasks...");
 
+
         Object.values(robots).forEach(robot => {
             if (robot.tasks.length > 0) {
                 let path = dijkstra(robot.position, robot.tasks[0], robot.id);
                 if (path.length > 0) {
                     client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
                 }
+            }
+            else if (robot.isReturning) {
+                let path = dijkstra(robot.position, robot.start_pos, robot.id);
+                client.publish(`robots/pathUpdate/${robot.id}`, JSON.stringify({ "path": path }));
             }
         });
     }

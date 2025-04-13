@@ -5,7 +5,7 @@ import threading
 from controller import Supervisor, DistanceSensor
 
 # Set the MQTT broker IP here
-MQTT_BROKER_IP = "145.137.68.141"
+MQTT_BROKER_IP = "192.168.180.137"
 MQTT_PORT = 1883
 
 

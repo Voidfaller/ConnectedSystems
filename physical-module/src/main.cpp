@@ -11,16 +11,16 @@
 
 const int LED_PINS[] = {NORTH_LED_PIN, EAST_LED_PIN, SOUTH_LED_PIN, WEST_LED_PIN};
 
-const char *ssid = "Mees";
-const char *password = "meeskees";
+const char *ssid = "";
+const char *password = "";
 
 WiFiClient wifiClient;
 PubSubClient client = PubSubClient(wifiClient);
 
-IPAddress server(192, 168, 180, 138); // MQTT broker IP address
+IPAddress server(192, 168, 180, 137); // MQTT broker IP address
 
 const char *position_topic = "robots/position/robot_1";
-const char *system_topic = "system/powerControl";
+const char *system_topic = "server/powerControl";
 
 void sendStopJson(const char *topic, const char *key, int value);
 void processMessage(int messageSize);
@@ -36,7 +36,7 @@ unsigned long lastButtonPress = 0;
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("Hello, World!");
+  Serial.println("Starting up...");
 
   wifiInit();
   gpioInit();
@@ -71,7 +71,7 @@ void reconnect()
   {
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (client.connect("Physical-module"))
+    if (client.connect("Robot-1"))
     {
       Serial.println("connected");
       client.subscribe(position_topic);

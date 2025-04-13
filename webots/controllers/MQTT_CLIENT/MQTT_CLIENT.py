@@ -5,10 +5,10 @@ import threading
 from controller import Supervisor, DistanceSensor, LED
 
 # Set the MQTT broker IP here
-MQTT_BROKER_IP = "145.137.68.141"
+MQTT_BROKER_IP = "192.168.180.137"
 MQTT_PORT = 1883
 
-TASKLOAD = ["Extra Heavy", "Heavy", "Medium", "Light", "Extra Light"]
+TASKLOAD = ["Extra Heavy", "Heavy"]
 
 
 
@@ -72,7 +72,6 @@ class MQTTSupervisor(Supervisor):
             # Publish a message once connected
             payload = {"robot_id": self.ROBOT_ID, "start_pos":{"x": self.startPos[0], "y": self.startPos[1], "direction":"north"}, "taskLoad": TASKLOAD}
             client.subscribe(f"robots/pathUpdate/{self.ROBOT_ID}")  # Subscribe to the path update topic
-            #client.publish(f"robots/pathUpdate/{ROBOT_ID}", json.dumps({"robot_id": ROBOT_ID, "taskLoad": TASKLOAD}))  # Publish to the path update topic
             client.publish("robots/registration", json.dumps(payload))  # Publish to the robot status topic
         else:
             print(f"Failed to connect, return code {rc}")

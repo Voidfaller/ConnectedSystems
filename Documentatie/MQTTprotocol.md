@@ -1,6 +1,6 @@
 # Protocol Connected Systems eindopdracht | TI  
-## Versie 1.3  
-**Datum:** 25/03/25  
+## Versie 1.4 
+**Datum:** 13/04/25  
 **Auteur(s):** Gabriela Arvelo, Mees Bogaards, Marit Snijder, Giovanni de Groot  
 
 ---
@@ -32,7 +32,6 @@ Elk bericht wordt verzonden in een json
 **Verstuurd door:** Robots  
 **Doel:** Een robot meldt zich aan bij de server 
 
-#### **1. Robot vraagt om aanmelding** 
 **Topic:** `robots/registration` 
 **Payload:**  
 ```json
@@ -57,7 +56,7 @@ Elk bericht wordt verzonden in een json
 ```json
    {
       "x": 6,
-      "y": -2,
+      "y": 4,
       "direction": "south"
    }
 
@@ -75,7 +74,7 @@ Elk bericht wordt verzonden in een json
 ```json
 {
       "x": 6,
-      "y": -2,
+      "y": 8,
       "obstacle_type": "wall"
 }
 ```
@@ -83,9 +82,9 @@ Elk bericht wordt verzonden in een json
 ---
 
  
-### **4.5 Path Update**  
+### **4.4 Path Update**  
 **Verstuurd door:** Server  
-**Doel:** De server stuurt de kortste beschikbare route naar de robot.  
+**Doel:** De server stuurt de kortst beschikbare route naar de robot.  
 
 **Topic:** `robots/pathUpdate/<robotID>`  
 **Payload:**  
@@ -99,11 +98,11 @@ Elk bericht wordt verzonden in een json
 ---
 
 
-### **4.8 start en stop**  
+### **4.5 start en stop**  
 **Verstuurd door:** Dashboard / Fysieke unit  
 **Doel:** Hiermee wordt het systeem gestart en gestopt
 
-**Topic:** `system/powerControl`
+**Topic:** `server/powerControl`
 **Payload:**
 ```json
 {
@@ -111,10 +110,40 @@ Elk bericht wordt verzonden in een json
 }
 ```
 ---
+### **4.6 plan taak**
+**Verstuurd door:** Dashboard
+**Doel:** Hiermee wordt een taak gestuurd naar de simulatie
+
+**Topic:** `Server/task/target`
+**Payload:**
+```json
+{
+   "x": 2,
+   "y": 4,
+   "taskType":"Heavy",
+   "robotId":"robot_2"
+}
+```
+
+> **Note:** De `robot_id` parameter is optioneel.  
+> Als deze niet gespecificeerd is, zal de server automatisch de taak uitdelen aan een robot. Stuur in dit geval een lege string mee
 
 -----
-## 5 Mogelijke fouten
-## 6. Conclusie  
+### **4.7 update taak**
+**Verstuurd door:** Server
+**Doel:** Hiermee wordt een taak geupdate in het dashboard
+
+**Topic:** `Server/task/dashboard`
+**Payload:**
+```json
+{
+   "x":5,
+   "y":2,
+   "taskType":"Medium",
+   "robotId":"robot_6"
+}
+```
+## 5. Conclusie  
 Dit protocol zorgt ervoor dat de communicatie tussen de server en de robots gestructureerd, betrouwbaar en efficiënt verloopt via MQTT. Door het gebruik van specifieke topics en gestandaardiseerde berichten kunnen robots en de server effectief met elkaar communiceren zonder dat er verwarring of conflicten ontstaan.  
 
 ---

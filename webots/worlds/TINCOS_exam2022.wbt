@@ -10,8 +10,8 @@ WorldInfo {
   basicTimeStep 100
 }
 Viewpoint {
-  orientation -0.30216298915096207 0.2023672042092763 0.931528337007456 1.7832610007885672
-  position 0.6180769815216005 -1.6381022964260517 1.4747723992853383
+  orientation -0.32930931664297947 0.27438411247901673 0.9034759171063921 1.626465205694986
+  position 0.039111420459654746 -2.0283695108708883 1.993457998776535
 }
 TexturedBackground {
 }
@@ -126,4 +126,9 @@ mqtt_robot {
   translation 0 1 0.04
   controller "MQTT_FOLLOWER1"
   name "robot_3"
+}
+mqtt_robot {
+  translation 1 1 0.04
+  controller "MQTT_FOLLOWER1"
+  name "robot_4"
 }
